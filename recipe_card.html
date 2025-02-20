@@ -6,14 +6,13 @@
     <style>
         body {
             font-family: Arial, sans-serif;
+            font-size: 16px;
             line-height: 1.5;
             margin: 0;
             padding: 0;
         }
         header {
-            background-color: #F4A261;
-            color: white;
-            padding: 20px;
+            display: none;
         }
         .container {
             max-width: 800px;
@@ -47,6 +46,39 @@
             font-size: 1.2em;
             margin-top: 20px;
         }
+        
+        @media print {
+         body {
+            font-size: 14px;
+         }
+          h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+          }
+          
+          ul, ol {
+            font-size: 1.2em;
+            margin-top: 10px;
+          }
+          
+          img {
+            margin-bottom: 10px;
+            display: none;
+          }
+          
+          .rating {
+            margin-top: 10px;
+          }
+          
+          /* Page breaks */
+          h1, ul, ol {
+            page-break-inside: avoid;
+          }
+          
+          h1 {
+            page-break-before: always;
+          }
+        }
     </style>
 </head>
 <body>
@@ -70,9 +102,6 @@
         </ol>
         <h2>Notes</h2>
         <p>{{ recipe.description }}</p>
-        <div class="rating">
-            <strong>{{ recipe.aggregateRating.ratingValue }}</strong> out of 5 stars (based on {{ recipe.aggregateRating.reviewCount }} reviews)
-        </div>
     </div>
 </body>
 </html>
