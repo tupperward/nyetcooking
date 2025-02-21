@@ -8,6 +8,14 @@
             body {
                 font-size: 14px;
             }
+            img {
+                display: block !important;
+                max-width: 100% !important;
+                page-break-inside: avoid !important;
+                page-break-before: avoid;
+                page-break-after: avoid;
+            }
+
             header {
                 page-break-before: avoid;
                 page-break-inside: avoid;
@@ -19,11 +27,6 @@
                 page-break-before: avoid !important;
                 page-break-inside: avoid !important;
                 page-break-after: avoid; /* Prevents header from forcing a new page */
-            }
-
-            img {
-                margin-bottom: 10px;
-                display: none; /* Hide images in print */
             }
 
             ul, ol {
