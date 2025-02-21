@@ -70,7 +70,7 @@ func extractLDJSON(url string) (string, error) {
 //go:embed go_recipe_card.html
 var recipeTemplate string 
 
-func createBasicWebpage(ldjson string) (string, error) {
+func createBasicWebpage(ldjson string, noImage bool) (string, error) {
 	// Parse JSON into a generic map
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(ldjson), &data)
@@ -84,8 +84,13 @@ func createBasicWebpage(ldjson string) (string, error) {
 		return "", fmt.Errorf("error parsing template: %w", err)
 	}
 
+	// Create the context for the Gonja template
+	
 	// Create Gonja execution context
-	ctx := exec.NewContext(data)
+	ctx := exec.NewContext(map[string]interface{}{
+		"recipe": data,
+		"no_image": noImage, // Pass the noImage flag
+	})
 
 	// Render template to string
 	rendered, err := tpl.ExecuteToString(ctx)
@@ -109,12 +114,6 @@ func main() {
 	
 	flag.Parse()
 
-	// Check for URL argument
-	if len(os.Args) < 2 || len(os.Args) > 3 {
-		fmt.Println("Usage: ./your_program <url> [output_directory]")
-		return
-	}
-
 	// Get URL from argument if the flag isn't set
 	if url == "" {
 		url = os.Args[1]
@@ -135,7 +134,7 @@ func main() {
 	}
 
 	// Generate HTML from the template
-	html, err := createBasicWebpage(ldjson)
+	html, err := createBasicWebpage(ldjson, noImage)
 	if err != nil {
 		fmt.Println("Error creating webpage:", err)
 		return

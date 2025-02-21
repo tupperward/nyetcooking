@@ -83,27 +83,29 @@
 </head>
 <body>
     <header>
-        <h1>{{ name }}</h1>
-        <p>By {{ author.name }}</p>
+        <h1>{{ recipe.name }}</h1>
+        <p>By {{ recipe.author.name }}</p>
     </header>
     <div class="container">
-        <h1>{{ name }}</h1>
-        <p>By {{ author.name }}</p>
-        <img src="{{ image[0]['url'] }}" alt="{{ name }}">
+        <h1>{{ recipe.name }}</h1>
+        <p>By {{ recipe.author.name }}</p>
+        {% if not no_image %}
+        <img src="{{ recipe.image[0]['url'] }}" alt="{{ recipe.name }}">
+        {% endif %}
         <h2>Ingredients</h2>
         <ul>
-            {% for ingredient in recipeIngredient %}
+            {% for ingredient in recipe.recipeIngredient %}
             <li>{{ ingredient }}</li>
             {% endfor %}
         </ul>
         <h2>Instructions</h2>
         <ol>
-            {% for step in recipeInstructions %}
+            {% for step in recipe.recipeInstructions %}
             <li>{{ step["text"] }}</li>  {# Fix dot notation to dictionary lookup #}
             {% endfor %}
         </ol>
         <h2>Notes</h2>
-        <p>{{ description }}</p>
+        <p>{{ recipe.description }}</p>
     </div>
 </body>
 </html>
