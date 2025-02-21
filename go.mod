@@ -3,7 +3,6 @@ module recipe-scraper
 go 1.23.2
 
 require (
-	github.com/SebastiaanKlippert/go-wkhtmltopdf v1.9.3
 	github.com/nikolalohinski/gonja/v2 v2.3.3
 )
 
