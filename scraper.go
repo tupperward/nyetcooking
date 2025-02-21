@@ -27,6 +27,7 @@ type Image struct {
 	Url string `json:"url"`
 }
 
+// Locates the first <script> block that is of type ld+json
 func findFirstLDJSONBlock(html string) (string, error) {
 	start := strings.Index(html, `<script type="application/ld+json">`)
 	if start == -1 {
