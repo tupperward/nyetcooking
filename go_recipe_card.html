@@ -4,6 +4,47 @@
     <meta charset="utf-8">
     <title>{{ name }}</title>
     <style>
+        @media print {
+            body {
+                font-size: 14px;
+            }
+            header {
+                page-break-before: avoid;
+                page-break-inside: avoid;
+                page-break-after: avoid;
+            }
+            h1 {
+                font-size: 2.5em;
+                margin-bottom: 10px;
+                page-break-before: avoid !important;
+                page-break-inside: avoid !important;
+                page-break-after: avoid; /* Prevents header from forcing a new page */
+            }
+
+            img {
+                margin-bottom: 10px;
+                display: none; /* Hide images in print */
+            }
+
+            ul, ol {
+                font-size: 1.2em;
+                margin-top: 10px;
+                page-break-before: avoid !important; /* Prevents unnecessary page breaks */
+                page-break-inside: auto !important; /* Allows lists to break if needed */
+                page-break-after: avoid !important;
+            }
+
+            li {
+                page-break-inside: auto !important; /* Prevents breaking individual list items */
+            }
+
+            /* Prevent unnecessary page breaks */
+            h2, h3, h4 {
+                page-break-after: avoid !important;
+                page-break-before: avoid;
+                page-break-inside: avoid !important;
+            }
+        }
         body {
             font-family: Arial, sans-serif;
             font-size: 16px;
