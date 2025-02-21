@@ -11,6 +11,6 @@ Did you know that NYT Cooking recipe pages have all the data for the recipe on t
 In your terminal type `nyetcooking <url>` and the HTML page will be generated in your current directory.
 
 ### Flags
-- --url         Url to scrape
-- -o            Output Path
-- --no-image    Do not render image
+- `--url `        Url to scrape
+- `-o`            Output Path
+- `--no-image`    Do not render image
