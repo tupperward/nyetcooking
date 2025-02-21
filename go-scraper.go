@@ -9,6 +9,7 @@ import (
 		"strings"
 		"encoding/json"
 		_ "embed"
+		"flag"
 
 		"github.com/nikolalohinski/gonja/v2"
 		"github.com/nikolalohinski/gonja/v2/exec"
@@ -69,7 +70,7 @@ func extractLDJSON(url string) (string, error) {
 //go:embed go_recipe_card.html
 var recipeTemplate string 
 
-func createBasicWebpage(ldjson string) (string, error) {
+func createBasicWebpage(ldjson string, noImage bool) (string, error) {
 	// Parse JSON into a generic map
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(ldjson), &data)
@@ -83,8 +84,13 @@ func createBasicWebpage(ldjson string) (string, error) {
 		return "", fmt.Errorf("error parsing template: %w", err)
 	}
 
+	// Create the context for the Gonja template
+	
 	// Create Gonja execution context
-	ctx := exec.NewContext(data)
+	ctx := exec.NewContext(map[string]interface{}{
+		"recipe": data,
+		"no_image": noImage, // Pass the noImage flag
+	})
 
 	// Render template to string
 	rendered, err := tpl.ExecuteToString(ctx)
@@ -96,19 +102,30 @@ func createBasicWebpage(ldjson string) (string, error) {
 }
 
 func main() {
-	// Check for URL argument
-	if len(os.Args) < 2 || len(os.Args) > 3 {
-		fmt.Println("Usage: ./your_program <url> [output_directory]")
-		return
+	// Set up flags
+	var outputDir string 
+	flag.StringVar(&outputDir, "o", "", "Output to a specific file path")
+
+	var url string
+	flag.StringVar(&url, "url", "", "NYT Cooking URL to retrieve")
+
+	var noImage bool
+	flag.BoolVar(&noImage, "no-image", false, "Do not render the included image (saves printer ink)")
+	
+	flag.Parse()
+
+	// Get URL from argument if the flag isn't set
+	if url == "" {
+		url = os.Args[1]
 	}
 
-	// Get URL and optional output path
-	url := os.Args[1]
-	outputDir := "./"
-	if len(os.Args) == 3 {
-		outputDir = os.Args[2]
+	// Get the output directory from argument if the flag isn't set
+	if outputDir == "" {
+		if len(os.Args) == 3 {
+			outputDir = os.Args[2]
+		}
 	}
-
+	
 	// Fetch LD+JSON data
 	ldjson, err := extractLDJSON(url)
 	if err != nil {
@@ -117,13 +134,17 @@ func main() {
 	}
 
 	// Generate HTML from the template
-	html, err := createBasicWebpage(ldjson)
+	html, err := createBasicWebpage(ldjson, noImage)
 	if err != nil {
 		fmt.Println("Error creating webpage:", err)
 		return
 	}
-
+	
 	// Build output file path
+	if outputDir == "" {
+		outputDir = "./"
+	}
+
 	filename := filepath.Base(url) + ".html"
 	filePath := filepath.Join(outputDir, filename)
 
