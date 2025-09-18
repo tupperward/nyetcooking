@@ -131,10 +131,15 @@
             color: var(--fg);
         }
 
-        .print-button {
+        .action-buttons {
             position: fixed;
             top: 20px;
             right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-button {
             background-color: var(--accent);
             color: var(--bg);
             border: none;
@@ -144,9 +149,12 @@
             font-size: 16px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            font-family: var(--sans);
         }
 
-        .print-button:hover {
+        .action-button:hover {
             background-color: var(--hover);
         }
 
@@ -227,7 +235,10 @@
     </style>
 </head>
 <body>
-    <button class="print-button no-print" onclick="window.print()">🖨️ Print Recipe</button>
+    <div class="action-buttons no-print">
+        <button class="action-button" onclick="window.print()">🖨️ Print</button>
+        <button class="action-button" onclick="copyMarkdown()">📋 Copy MD</button>
+    </div>
 
     <header>
         <h1>{{ recipe.name }}</h1>
@@ -309,5 +320,107 @@
         </div>
         {% endif %}
     </div>
+
+    <script>
+        async function copyMarkdown() {
+            try {
+                const response = await fetch(window.location.pathname + '/markdown');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const markdown = await response.text();
+
+                // Try modern clipboard API first
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(markdown);
+                } else {
+                    // Fallback for non-HTTPS environments
+                    const textArea = document.createElement('textarea');
+                    textArea.value = markdown;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                }
+
+                // Show feedback
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy markdown:', err);
+
+                // If all else fails, show a popup with the markdown text
+                try {
+                    const response = await fetch(window.location.pathname + '/markdown');
+                    const markdown = await response.text();
+
+                    // Create a modal dialog
+                    const modal = document.createElement('div');
+                    modal.style.cssText = `
+                        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                        background: rgba(0,0,0,0.8); z-index: 10000; display: flex;
+                        justify-content: center; align-items: center;
+                    `;
+
+                    const content = document.createElement('div');
+                    content.style.cssText = `
+                        background: white; padding: 20px; border-radius: 8px;
+                        max-width: 80%; max-height: 80%; overflow: auto;
+                        position: relative;
+                    `;
+
+                    const closeBtn = document.createElement('button');
+                    closeBtn.textContent = '✕ Close';
+                    closeBtn.style.cssText = `
+                        position: absolute; top: 10px; right: 10px;
+                        background: #f44336; color: white; border: none;
+                        padding: 5px 10px; border-radius: 3px; cursor: pointer;
+                    `;
+                    closeBtn.onclick = () => document.body.removeChild(modal);
+
+                    const textarea = document.createElement('textarea');
+                    textarea.value = markdown;
+                    textarea.style.cssText = `
+                        width: 100%; height: 400px; font-family: monospace;
+                        border: 1px solid #ccc; padding: 10px; margin-top: 30px;
+                    `;
+                    textarea.readOnly = true;
+                    textarea.onclick = () => textarea.select();
+
+                    const instructions = document.createElement('p');
+                    instructions.textContent = 'Click the text area to select all, then copy (Ctrl+C / Cmd+C)';
+                    instructions.style.cssText = 'margin: 10px 0; color: #666;';
+
+                    content.appendChild(closeBtn);
+                    content.appendChild(instructions);
+                    content.appendChild(textarea);
+                    modal.appendChild(content);
+                    document.body.appendChild(modal);
+
+                    // Close on background click
+                    modal.onclick = (e) => {
+                        if (e.target === modal) document.body.removeChild(modal);
+                    };
+
+                    const button = event.target;
+                    const originalText = button.textContent;
+                    button.textContent = '📄 Opened';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 2000);
+                } catch (fallbackErr) {
+                    // Silently fail - user can try again if needed
+                }
+            }
+        }
+    </script>
 </body>
 </html>
