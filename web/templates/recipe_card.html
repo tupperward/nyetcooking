@@ -265,8 +265,18 @@
     </header>
 
     <div class="container">
-        {% if recipe.image and recipe.image[0] %}
-        <img src="{{ recipe.image[0] }}" alt="{{ recipe.name }}">
+        {% if recipe.image %}
+            {% if recipe.image is string %}
+                <img src="{{ recipe.image }}" alt="{{ recipe.name }}">
+            {% elif recipe.image is iterable and recipe.image[0] %}
+                {% if recipe.image[0] is string %}
+                    <img src="{{ recipe.image[0] }}" alt="{{ recipe.name }}">
+                {% elif recipe.image[0].url %}
+                    <img src="{{ recipe.image[0].url }}" alt="{{ recipe.name }}">
+                {% elif recipe.image[0].contentUrl %}
+                    <img src="{{ recipe.image[0].contentUrl }}" alt="{{ recipe.name }}">
+                {% endif %}
+            {% endif %}
         {% endif %}
 
         <div class="recipe-meta">

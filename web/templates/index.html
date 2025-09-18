@@ -67,9 +67,102 @@
         color: var(--fg);
         text-align: center;
       }
+
+      .print-button {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: var(--accent);
+        color: var(--bg);
+        border: none;
+        padding: 12px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        transition: background-color 0.3s ease;
+      }
+
+      .print-button:hover {
+        background-color: var(--hover);
+      }
+
+      .no-print {
+        display: block;
+      }
+
+      /* Print-specific styles - maximize page usage */
+      @media print {
+        .no-print {
+          display: none !important;
+        }
+
+        * {
+          margin: 0 !important;
+          padding: 0 !important;
+          border: none !important;
+          background: none !important;
+          box-shadow: none !important;
+          border-radius: 0 !important;
+          font-family: Arial, sans-serif !important;
+        }
+
+        body {
+          font-size: 10pt !important;
+          line-height: 1.2 !important;
+          color: black !important;
+          margin: 5mm !important;
+        }
+
+        .container {
+          max-width: none !important;
+        }
+
+        h1 {
+          font-size: 14pt !important;
+          font-weight: bold !important;
+          margin-bottom: 5mm !important;
+        }
+
+        p {
+          font-size: 9pt !important;
+          margin-bottom: 3mm !important;
+        }
+
+        label {
+          font-size: 9pt !important;
+          font-weight: bold !important;
+        }
+
+        input[type="url"] {
+          border: 1px solid black !important;
+          padding: 2mm !important;
+          font-size: 9pt !important;
+          width: 100% !important;
+          margin: 1mm 0 !important;
+        }
+
+        button {
+          border: 1px solid black !important;
+          padding: 2mm !important;
+          font-size: 9pt !important;
+          margin-top: 2mm !important;
+        }
+
+        .help-text {
+          font-size: 8pt !important;
+          margin-top: 1mm !important;
+        }
+
+        .form-group {
+          margin-bottom: 3mm !important;
+        }
+      }
     </style>
   </head>
   <body>
+    <button class="print-button no-print" onclick="window.print()">🖨️ Print Page</button>
+
     <div class="container">
       <h1>NYet Cooking</h1>
       <p>Generate a recipe card from any recipe URL</p>
