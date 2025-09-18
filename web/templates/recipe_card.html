@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ recipe.name }}</title>
+    <style>
+        /* Screen and general styles */
+        body {
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        .no-print {
+            display: block;
+        }
+
+        header {
+            background-color: #F4A261;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #2C3E50;
+            border-bottom: 2px solid #F4A261;
+            padding-bottom: 5px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        .recipe-meta {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .recipe-meta div {
+            text-align: center;
+        }
+
+        .recipe-meta strong {
+            display: block;
+            font-size: 1.1em;
+            color: #2C3E50;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .recipe-content {
+            display: flex;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        .ingredients-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            flex: 0 0 35%;
+        }
+
+        .instructions-section {
+            flex: 1;
+        }
+
+        ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        ol li {
+            margin-bottom: 15px;
+            padding-left: 5px;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        .rating {
+            background-color: #e8f5e8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .print-button:hover {
+            background-color: #45a049;
+        }
+
+        /* Print-specific styles */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                font-size: 12pt;
+                line-height: 1.4;
+                color: black;
+            }
+
+            header {
+                background-color: transparent !important;
+                color: black !important;
+                padding: 10px 0;
+                border-bottom: 2px solid black;
+            }
+
+            .container {
+                max-width: none;
+                margin: 0;
+                padding: 0;
+            }
+
+            h1 {
+                font-size: 20pt;
+                margin-bottom: 10pt;
+                page-break-after: avoid;
+            }
+
+            h2 {
+                font-size: 14pt;
+                color: black;
+                border-bottom: 1px solid black;
+                margin-top: 20pt;
+                margin-bottom: 10pt;
+                page-break-after: avoid;
+            }
+
+            .recipe-meta {
+                background-color: transparent !important;
+                border: 1px solid black;
+                padding: 10pt;
+                margin: 10pt 0;
+                page-break-inside: avoid;
+            }
+
+            .recipe-content {
+                display: flex;
+                gap: 20pt;
+                margin: 10pt 0;
+            }
+
+            .ingredients-section {
+                background-color: transparent !important;
+                border: 1px solid #ccc;
+                padding: 10pt;
+                flex: 0 0 35%;
+                page-break-inside: avoid;
+            }
+
+            .instructions-section {
+                flex: 1;
+                page-break-inside: avoid;
+            }
+
+            img {
+                max-width: 100%;
+                max-height: 300pt;
+                page-break-inside: avoid;
+                box-shadow: none;
+            }
+
+            ul, ol {
+                page-break-inside: avoid;
+            }
+
+            li {
+                page-break-inside: avoid;
+                margin-bottom: 5pt;
+            }
+
+            .rating {
+                background-color: transparent !important;
+                border: 1px solid black;
+                padding: 10pt;
+                margin-top: 15pt;
+                page-break-inside: avoid;
+            }
+
+            /* Ensure good page breaks */
+            h2, .recipe-meta, .recipe-content {
+                page-break-inside: avoid;
+            }
+
+            /* Avoid widows and orphans */
+            p, li {
+                orphans: 3;
+                widows: 3;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button no-print" onclick="window.print()">🖨️ Print Recipe</button>
+
+    <header>
+        <h1>{{ recipe.name }}</h1>
+        {% if recipe.author and recipe.author.name %}
+        <p>By {{ recipe.author.name }}</p>
+        {% endif %}
+    </header>
+
+    <div class="container">
+        {% if recipe.image and recipe.image[0] %}
+        <img src="{{ recipe.image[0] }}" alt="{{ recipe.name }}">
+        {% endif %}
+
+        <div class="recipe-meta">
+            {% if recipe.totalTime %}
+            <div>
+                <strong>Total Time</strong>
+                <span>{{ recipe.totalTime }}</span>
+            </div>
+            {% endif %}
+            {% if recipe.recipeYield %}
+            <div>
+                <strong>Serves</strong>
+                <span>{{ recipe.recipeYield }}</span>
+            </div>
+            {% endif %}
+            {% if recipe.prepTime %}
+            <div>
+                <strong>Prep Time</strong>
+                <span>{{ recipe.prepTime }}</span>
+            </div>
+            {% endif %}
+            {% if recipe.cookTime %}
+            <div>
+                <strong>Cook Time</strong>
+                <span>{{ recipe.cookTime }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if recipe.description %}
+        <p><em>{{ recipe.description }}</em></p>
+        {% endif %}
+
+        <div class="recipe-content">
+            <div class="ingredients-section">
+                <h2>Ingredients</h2>
+                <ul>
+                    {% for ingredient in recipe.recipeIngredient %}
+                    <li>{{ ingredient }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="instructions-section">
+                <h2>Instructions</h2>
+                <ol>
+                    {% for step in recipe.recipeInstructions %}
+                    <li>{% if step.text %}{{ step.text }}{% else %}{{ step }}{% endif %}</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+
+        {% if recipe.aggregateRating and recipe.aggregateRating.ratingValue %}
+        <div class="rating">
+            <strong>{{ recipe.aggregateRating.ratingValue }}</strong> out of 5 stars
+            {% if recipe.aggregateRating.reviewCount %}(based on {{ recipe.aggregateRating.reviewCount }} reviews){% endif %}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

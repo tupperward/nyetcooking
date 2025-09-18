@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>NYet Cooking - Recipe Card Generator</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #555;
+      }
+      input[type="url"] {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+      input[type="url"]:focus {
+        border-color: #4CAF50;
+        outline: none;
+      }
+      button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        width: 100%;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      .help-text {
+        font-size: 14px;
+        color: #666;
+        margin-top: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>NYet Cooking</h1>
+      <p>Generate a recipe card from any recipe URL</p>
+
+      <form action="/process" method="POST">
+        <div class="form-group">
+          <label for="recipe_url">Recipe URL:</label>
+          <input
+            type="url"
+            id="recipe_url"
+            name="recipe_url"
+            required
+            placeholder="https://example.com/recipe-page"
+          >
+          <div class="help-text">
+            Enter the URL of a recipe page that contains structured recipe data
+          </div>
+        </div>
+
+        <button type="submit">Generate Recipe Card</button>
+      </form>
+    </div>
+  </body>
+</html>
