@@ -6,6 +6,7 @@ import re
 import logging
 import sys
 import traceback
+import os
 
 # Configure logging for k8s
 logging.basicConfig(
@@ -17,10 +18,27 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Redis setup with fallback to in-memory cache
+try:
+    import redis
+    redis_host = os.getenv('REDIS_HOST', 'localhost')
+    redis_port = int(os.getenv('REDIS_PORT', '6379'))
+    redis_client = redis.Redis(host=redis_host, port=redis_port, db=0, decode_responses=True, socket_connect_timeout=5)
+    # Test connection
+    redis_client.ping()
+    logger.info(f"Redis connected successfully at {redis_host}:{redis_port}")
+    USE_REDIS = True
+except Exception as e:
+    logger.warning(f"Redis connection failed: {e}")
+    logger.info("Falling back to in-memory cache")
+    redis_client = None
+    USE_REDIS = False
+
 # Log startup information immediately
 logger.info("=== NYet Cooking Flask App Initializing ===")
 logger.info(f"Python version: {sys.version}")
 logger.info(f"Flask app name: {app.name}")
+logger.info(f"Cache backend: {'Redis' if USE_REDIS else 'In-memory'}")
 logger.info("Available routes will be logged after app creation")
 
 @app.before_request
@@ -33,6 +51,60 @@ def log_request():
 def log_response(response):
     logger.info(f"Response: {response.status_code} for {request.url}")
     return response
+
+# Cache helper functions
+def cache_recipe(slug, recipe_data, original_url):
+    """Store recipe in cache (Redis or in-memory)"""
+    cache_data = {
+        'recipe': recipe_data,
+        'original_url': original_url
+    }
+
+    if USE_REDIS:
+        try:
+            redis_client.setex(f"recipe:{slug}", 3600, json.dumps(cache_data))  # 1 hour TTL
+            logger.info(f"Cached recipe '{slug}' in Redis")
+        except Exception as e:
+            logger.error(f"Redis cache failed, falling back to memory: {e}")
+            recipe_cache[slug] = cache_data
+    else:
+        recipe_cache[slug] = cache_data
+        logger.info(f"Cached recipe '{slug}' in memory")
+
+def get_cached_recipe(slug):
+    """Retrieve recipe from cache (Redis or in-memory)"""
+    if USE_REDIS:
+        try:
+            cached = redis_client.get(f"recipe:{slug}")
+            if cached:
+                logger.info(f"Retrieved recipe '{slug}' from Redis")
+                return json.loads(cached)
+            else:
+                logger.info(f"Recipe '{slug}' not found in Redis")
+                return None
+        except Exception as e:
+            logger.error(f"Redis get failed, falling back to memory: {e}")
+            return recipe_cache.get(slug)
+    else:
+        cached = recipe_cache.get(slug)
+        if cached:
+            logger.info(f"Retrieved recipe '{slug}' from memory")
+        else:
+            logger.info(f"Recipe '{slug}' not found in memory")
+        return cached
+
+def get_cache_keys():
+    """Get all cache keys for debugging"""
+    if USE_REDIS:
+        try:
+            keys = redis_client.keys("recipe:*")
+            # Strip the "recipe:" prefix for consistency
+            return [key.replace("recipe:", "") for key in keys]
+        except Exception as e:
+            logger.error(f"Redis keys failed: {e}")
+            return list(recipe_cache.keys())
+    else:
+        return list(recipe_cache.keys())
 def get_recipe(url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -206,16 +278,12 @@ def process_recipe():
         recipe_slug = get_recipe_slug(recipe_json)
         logger.info(f"Generated slug: {recipe_slug}")
 
-        # Store both recipe data AND original URL for fallback
-        recipe_cache[recipe_slug] = {
-            'recipe': recipe_json,
-            'original_url': recipe_url
-        }
-        logger.info(f"Cached recipe with slug: {recipe_slug}")
-        logger.info(f"Cache now contains: {list(recipe_cache.keys())}")
+        # Cache recipe using helper function
+        cache_recipe(recipe_slug, recipe_json, recipe_url)
+        logger.info(f"Cache now contains: {get_cache_keys()}")
 
         # Verify the recipe was actually cached
-        cached_recipe = recipe_cache.get(recipe_slug)
+        cached_recipe = get_cached_recipe(recipe_slug)
         if cached_recipe:
             logger.info(f"Cache verification successful for '{recipe_slug}'")
         else:
@@ -232,10 +300,11 @@ def process_recipe():
 @app.route('/nyetcooking/<recipe_name>')
 def recipe_card(recipe_name):
     logger.info(f"=== Recipe card requested for: {recipe_name} ===")
-    logger.info(f"Current cache keys: {list(recipe_cache.keys())}")
-    logger.info(f"Cache size: {len(recipe_cache)}")
+    cache_keys = get_cache_keys()
+    logger.info(f"Current cache keys: {cache_keys}")
+    logger.info(f"Cache size: {len(cache_keys)}")
 
-    cached_data = recipe_cache.get(recipe_name)
+    cached_data = get_cached_recipe(recipe_name)
 
     if cached_data and isinstance(cached_data, dict) and 'recipe' in cached_data:
         # New format with URL stored
@@ -248,17 +317,18 @@ def recipe_card(recipe_name):
         original_url = None
         logger.info(f"Recipe '{recipe_name}' found in cache (old format)")
     else:
-        # Not in cache - no fallback possible without stored URL
+        # Not in cache - try fallback
         logger.warning(f"Recipe '{recipe_name}' not found in cache (likely multi-worker issue)")
-        logger.info(f"Available recipes: {list(recipe_cache.keys())}")
+        cache_keys = get_cache_keys()
+        logger.info(f"Available recipes: {cache_keys}")
 
         # Add some debug info about similar keys
-        similar_keys = [k for k in recipe_cache.keys() if recipe_name in k or k in recipe_name]
+        similar_keys = [k for k in cache_keys if recipe_name in k or k in recipe_name]
         if similar_keys:
             logger.info(f"Similar keys found: {similar_keys}")
             # Try to get URL from similar key
             for similar_key in similar_keys:
-                similar_data = recipe_cache.get(similar_key)
+                similar_data = get_cached_recipe(similar_key)
                 if isinstance(similar_data, dict) and 'original_url' in similar_data:
                     original_url = similar_data['original_url']
                     logger.info(f"Found original URL from similar key '{similar_key}': {original_url}")
@@ -267,11 +337,8 @@ def recipe_card(recipe_name):
                         logger.info(f"Attempting fallback re-fetch from: {original_url}")
                         recipe_json = get_recipe(original_url)
                         if recipe_json:
-                            # Cache it for this worker (new format)
-                            recipe_cache[recipe_name] = {
-                                'recipe': recipe_json,
-                                'original_url': original_url
-                            }
+                            # Cache it using helper function
+                            cache_recipe(recipe_name, recipe_json, original_url)
                             logger.info(f"Fallback successful! Re-cached {recipe_name}")
                             break
                         else:
@@ -298,7 +365,7 @@ def recipe_card(recipe_name):
 
 @app.route('/nyetcooking/<recipe_name>/markdown')
 def recipe_markdown(recipe_name):
-    cached_data = recipe_cache.get(recipe_name)
+    cached_data = get_cached_recipe(recipe_name)
 
     if cached_data and isinstance(cached_data, dict) and 'recipe' in cached_data:
         # New format with URL stored
@@ -309,22 +376,20 @@ def recipe_markdown(recipe_name):
     else:
         logger.warning(f"Recipe '{recipe_name}' not found in cache for markdown export")
 
-        # Try to find it in another worker's cache and use its URL
-        similar_keys = [k for k in recipe_cache.keys() if recipe_name in k or k in recipe_name]
+        # Try to find it in cache and use its URL
+        cache_keys = get_cache_keys()
+        similar_keys = [k for k in cache_keys if recipe_name in k or k in recipe_name]
         if similar_keys:
             for similar_key in similar_keys:
-                similar_data = recipe_cache.get(similar_key)
+                similar_data = get_cached_recipe(similar_key)
                 if isinstance(similar_data, dict) and 'original_url' in similar_data:
                     original_url = similar_data['original_url']
                     try:
                         logger.info(f"Markdown fallback re-fetch from: {original_url}")
                         recipe_json = get_recipe(original_url)
                         if recipe_json:
-                            # Cache it for this worker (new format)
-                            recipe_cache[recipe_name] = {
-                                'recipe': recipe_json,
-                                'original_url': original_url
-                            }
+                            # Cache it using helper function
+                            cache_recipe(recipe_name, recipe_json, original_url)
                             logger.info(f"Markdown fallback successful for {recipe_name}")
                             break
                     except Exception as e:

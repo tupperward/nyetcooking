@@ -2,3 +2,4 @@ bs4
 requests
 flask
 gunicorn
+redis>=4.0.0

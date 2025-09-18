@@ -16,4 +16,4 @@ WORKDIR /app/web
 EXPOSE 5000
 
 # Run the Flask app with Gunicorn
-CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "app:app"]
+CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "app:app"]
