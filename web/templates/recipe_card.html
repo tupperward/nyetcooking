@@ -3,25 +3,20 @@
 <head>
     <meta charset="utf-8">
     <title>{{ recipe.name }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://worstwizard.online/css/styles.43ee99b54232661dd9ded14dced8cab56cfc208d9b1cd7fc75f4bc3973f80a4957d7330ced2d8e5ad3390d3a28ad121be3e6db4701ac0b84fa518a99b482e717.css">
     <style>
         /* Screen and general styles */
-        body {
-            font-family: 'Times New Roman', serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            color: #333;
-        }
-
         .no-print {
             display: block;
         }
 
         header {
-            background-color: #F4A261;
-            color: white;
+            background-color: var(--accent);
+            color: var(--bg);
             padding: 20px;
             text-align: center;
+            margin-bottom: 20px;
         }
 
         .container {
@@ -34,14 +29,19 @@
             font-size: 2.2em;
             margin-bottom: 10px;
             text-align: center;
+            color: var(--bg);
+            font-family: var(--serif);
+            font-weight: 700;
         }
 
         h2 {
-            color: #2C3E50;
-            border-bottom: 2px solid #F4A261;
+            color: var(--fg);
+            border-bottom: 2px solid var(--accent);
             padding-bottom: 5px;
             margin-top: 30px;
             margin-bottom: 15px;
+            font-family: var(--serif);
+            font-weight: 600;
         }
 
         .recipe-meta {
@@ -49,8 +49,9 @@
             justify-content: space-between;
             margin: 20px 0;
             padding: 15px;
-            background-color: #f8f9fa;
+            background-color: var(--hl_bg);
             border-radius: 8px;
+            border: 1px solid var(--hover);
         }
 
         .recipe-meta div {
@@ -60,7 +61,11 @@
         .recipe-meta strong {
             display: block;
             font-size: 1.1em;
-            color: #2C3E50;
+            color: var(--fg);
+        }
+
+        .recipe-meta span {
+            color: var(--dim);
         }
 
         img {
@@ -68,7 +73,7 @@
             height: auto;
             margin: 20px 0;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border: 1px solid var(--hover);
         }
 
         .recipe-content {
@@ -78,10 +83,11 @@
         }
 
         .ingredients-section {
-            background-color: #f8f9fa;
+            background-color: var(--hl_bg);
             padding: 20px;
             border-radius: 8px;
             flex: 0 0 35%;
+            border: 1px solid var(--hover);
         }
 
         .instructions-section {
@@ -91,15 +97,18 @@
         ul {
             margin: 0;
             padding-left: 20px;
+            color: var(--fg);
         }
 
         li {
             margin-bottom: 8px;
+            color: var(--fg);
         }
 
         ol {
             margin: 0;
             padding-left: 20px;
+            color: var(--fg);
         }
 
         ol li {
@@ -109,32 +118,36 @@
 
         p {
             margin-bottom: 15px;
+            color: var(--fg);
         }
 
         .rating {
-            background-color: #e8f5e8;
+            background-color: var(--hl_bg);
             padding: 15px;
             border-radius: 8px;
             margin-top: 20px;
             text-align: center;
+            border: 1px solid var(--hover);
+            color: var(--fg);
         }
 
         .print-button {
             position: fixed;
             top: 20px;
             right: 20px;
-            background-color: #4CAF50;
-            color: white;
+            background-color: var(--accent);
+            color: var(--bg);
             border: none;
             padding: 12px 20px;
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s ease;
         }
 
         .print-button:hover {
-            background-color: #45a049;
+            background-color: var(--hover);
         }
 
         /* Print-specific styles */
