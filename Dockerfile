@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM --platform=linux/amd64 python:3.9-slim
 
 WORKDIR /app
 
@@ -16,4 +16,4 @@ WORKDIR /app/web
 EXPOSE 5000
 
 # Run the Flask app with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "app:app"]
+CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "app:app"]
