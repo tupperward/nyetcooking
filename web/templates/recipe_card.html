@@ -5,6 +5,54 @@
     <title>{{ recipe.name }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" type="image/png" href="https://worstwizard.online/mage.png">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="{{ recipe.name }}">
+    <meta property="og:description" content="{% if recipe.description %}{{ recipe.description[:200] }}{% if recipe.description|length > 200 %}...{% endif %}{% else %}A delicious recipe from NYet Cooking{% endif %}">
+    {% if recipe.image %}
+        {% if recipe.image is string %}
+            <meta property="og:image" content="{{ recipe.image }}">
+        {% elif recipe.image is iterable and recipe.image[0] %}
+            {% if recipe.image[0] is string %}
+                <meta property="og:image" content="{{ recipe.image[0] }}">
+            {% elif recipe.image[0].url %}
+                <meta property="og:image" content="{{ recipe.image[0].url }}">
+            {% elif recipe.image[0].contentUrl %}
+                <meta property="og:image" content="{{ recipe.image[0].contentUrl }}">
+            {% endif %}
+        {% endif %}
+    {% endif %}
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:site_name" content="NYet Cooking">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ recipe.name }}">
+    <meta name="twitter:description" content="{% if recipe.description %}{{ recipe.description[:200] }}{% if recipe.description|length > 200 %}...{% endif %}{% else %}A delicious recipe from NYet Cooking{% endif %}">
+    {% if recipe.image %}
+        {% if recipe.image is string %}
+            <meta name="twitter:image" content="{{ recipe.image }}">
+        {% elif recipe.image is iterable and recipe.image[0] %}
+            {% if recipe.image[0] is string %}
+                <meta name="twitter:image" content="{{ recipe.image[0] }}">
+            {% elif recipe.image[0].url %}
+                <meta name="twitter:image" content="{{ recipe.image[0].url }}">
+            {% elif recipe.image[0].contentUrl %}
+                <meta name="twitter:image" content="{{ recipe.image[0].contentUrl }}">
+            {% endif %}
+        {% endif %}
+    {% endif %}
+
+    <!-- Additional meta tags for better SEO -->
+    <meta name="description" content="{% if recipe.description %}{{ recipe.description[:160] }}{% if recipe.description|length > 160 %}...{% endif %}{% else %}A delicious recipe from NYet Cooking{% endif %}">
+    {% if recipe.author and recipe.author.name %}
+    <meta name="author" content="{{ recipe.author.name }}">
+    {% endif %}
+    {% if recipe.keywords %}
+    <meta name="keywords" content="{{ recipe.keywords }}">
+    {% endif %}
+
     <link rel="stylesheet" href="https://worstwizard.online/css/styles.43ee99b54232661dd9ded14dced8cab56cfc208d9b1cd7fc75f4bc3973f80a4957d7330ced2d8e5ad3390d3a28ad121be3e6db4701ac0b84fa518a99b482e717.css">
     <style>
         /* Screen and general styles */
