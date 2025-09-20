@@ -187,11 +187,25 @@ def get_recipe(url):
     logger.info(f"Successfully extracted recipe: {recipe_json.get('name', 'unnamed')}")
     return recipe_json
 
-def get_recipe_slug(recipe_json):
+def extract_nyt_recipe_id(url):
+    """Extract recipe ID from NYT Cooking URLs"""
+    # Pattern: https://cooking.nytimes.com/recipes/1234567890-recipe-name
+    match = re.search(r'cooking\.nytimes\.com/recipes/(\d+)', url)
+    return match.group(1) if match else None
+
+def get_recipe_slug(recipe_json, original_url=None):
+    """Generate slug from recipe name, optionally including NYT recipe ID"""
     name = recipe_json.get('name', 'recipe')
     slug = re.sub(r'[^a-zA-Z0-9\s-]', '', name)
     slug = re.sub(r'\s+', '-', slug.strip())
     slug = slug.lower()
+
+    # If this is a NYT recipe, prepend the recipe ID for direct access
+    if original_url:
+        nyt_id = extract_nyt_recipe_id(original_url)
+        if nyt_id:
+            slug = f"{nyt_id}-{slug}"
+
     return slug
 
 def recipe_to_markdown(recipe_json):
@@ -275,7 +289,7 @@ def process_recipe():
 
         logger.info(f"Recipe data keys: {list(recipe_json.keys()) if recipe_json else 'None'}")
 
-        recipe_slug = get_recipe_slug(recipe_json)
+        recipe_slug = get_recipe_slug(recipe_json, recipe_url)
         logger.info(f"Generated slug: {recipe_slug}")
 
         # Cache recipe using helper function
@@ -297,6 +311,58 @@ def process_recipe():
         logger.error(f"Traceback: {traceback.format_exc()}")
         return f"Error processing recipe: {str(e)}", 400
 
+@app.route('/nyetcooking/recipes/<int:recipe_id>')
+@app.route('/nyetcooking/recipes/<int:recipe_id>-<recipe_name>')
+def nyt_recipe_auto_fetch(recipe_id, recipe_name=None):
+    """Auto-fetch NYT recipes by ID if not cached"""
+    # Try to find the recipe in cache first - check both formats
+    slug_with_id = f"{recipe_id}-{recipe_name}" if recipe_name else None
+    cached_data = None
+
+    if slug_with_id:
+        cached_data = get_cached_recipe(slug_with_id)
+
+    if not cached_data:
+        # Try to find any cached recipe with this ID
+        cache_keys = get_cache_keys()
+        for key in cache_keys:
+            if key.startswith(f"{recipe_id}-"):
+                cached_data = get_cached_recipe(key)
+                if cached_data:
+                    logger.info(f"Found cached recipe with ID {recipe_id} under key: {key}")
+                    break
+
+    if not cached_data:
+        # Auto-fetch from NYT
+        nyt_url = f"https://cooking.nytimes.com/recipes/{recipe_id}"
+        logger.info(f"Auto-fetching NYT recipe {recipe_id} from: {nyt_url}")
+
+        try:
+            recipe_json = get_recipe(nyt_url)
+            if recipe_json:
+                # Generate proper slug and cache
+                recipe_slug = get_recipe_slug(recipe_json, nyt_url)
+                cache_recipe(recipe_slug, recipe_json, nyt_url)
+                logger.info(f"Auto-fetched and cached recipe as: {recipe_slug}")
+
+                # Redirect to the proper slug URL
+                return redirect(f"/nyetcooking/{recipe_slug}")
+            else:
+                logger.error(f"Failed to fetch recipe {recipe_id}")
+                return "Recipe not found at NYT Cooking", 404
+        except Exception as e:
+            logger.error(f"Error auto-fetching recipe {recipe_id}: {e}")
+            return f"Error fetching recipe: {e}", 400
+    else:
+        # Recipe found in cache - extract and render
+        if isinstance(cached_data, dict) and 'recipe' in cached_data:
+            recipe_json = cached_data['recipe']
+        else:
+            recipe_json = cached_data
+
+        logger.info(f"Rendering auto-fetched recipe {recipe_id}")
+        return render_template('recipe_card.html', recipe=recipe_json)
+
 @app.route('/nyetcooking/<recipe_name>')
 def recipe_card(recipe_name):
     logger.info(f"=== Recipe card requested for: {recipe_name} ===")
@@ -317,41 +383,66 @@ def recipe_card(recipe_name):
         original_url = None
         logger.info(f"Recipe '{recipe_name}' found in cache (old format)")
     else:
-        # Not in cache - try fallback
-        logger.warning(f"Recipe '{recipe_name}' not found in cache (likely multi-worker issue)")
-        cache_keys = get_cache_keys()
-        logger.info(f"Available recipes: {cache_keys}")
+        # Not in cache - check if this is a NYT recipe ID format and auto-fetch
+        logger.warning(f"Recipe '{recipe_name}' not found in cache")
 
-        # Add some debug info about similar keys
-        similar_keys = [k for k in cache_keys if recipe_name in k or k in recipe_name]
-        if similar_keys:
-            logger.info(f"Similar keys found: {similar_keys}")
-            # Try to get URL from similar key
-            for similar_key in similar_keys:
-                similar_data = get_cached_recipe(similar_key)
-                if isinstance(similar_data, dict) and 'original_url' in similar_data:
-                    original_url = similar_data['original_url']
-                    logger.info(f"Found original URL from similar key '{similar_key}': {original_url}")
+        # Check if this looks like a NYT recipe (starts with digits)
+        match = re.match(r'^(\d+)-(.+)$', recipe_name)
+        if match:
+            recipe_id = match.group(1)
+            logger.info(f"Detected NYT recipe format with ID: {recipe_id}")
 
-                    try:
-                        logger.info(f"Attempting fallback re-fetch from: {original_url}")
-                        recipe_json = get_recipe(original_url)
-                        if recipe_json:
-                            # Cache it using helper function
-                            cache_recipe(recipe_name, recipe_json, original_url)
-                            logger.info(f"Fallback successful! Re-cached {recipe_name}")
-                            break
-                        else:
-                            logger.error("Fallback failed - no recipe data")
-                    except Exception as e:
-                        logger.error(f"Fallback failed with error: {e}")
-            else:
-                # No successful fallback found
-                logger.error("No fallback possible - recipe not found")
-                return "Recipe not found", 404
+            # Auto-fetch from NYT
+            nyt_url = f"https://cooking.nytimes.com/recipes/{recipe_id}"
+            logger.info(f"Auto-fetching NYT recipe {recipe_id} from: {nyt_url}")
+
+            try:
+                recipe_json = get_recipe(nyt_url)
+                if recipe_json:
+                    # Cache it with the requested slug
+                    cache_recipe(recipe_name, recipe_json, nyt_url)
+                    logger.info(f"Auto-fetched and cached recipe as: {recipe_name}")
+                else:
+                    logger.error(f"Failed to fetch recipe {recipe_id}")
+                    return "Recipe not found at NYT Cooking", 404
+            except Exception as e:
+                logger.error(f"Error auto-fetching recipe {recipe_id}: {e}")
+                return f"Error fetching recipe: {e}", 400
         else:
-            logger.error("Recipe not found and no fallback available")
-            return "Recipe not found", 404
+            # Try fallback with similar keys (existing logic)
+            cache_keys = get_cache_keys()
+            logger.info(f"Available recipes: {cache_keys}")
+
+            # Add some debug info about similar keys
+            similar_keys = [k for k in cache_keys if recipe_name in k or k in recipe_name]
+            if similar_keys:
+                logger.info(f"Similar keys found: {similar_keys}")
+                # Try to get URL from similar key
+                for similar_key in similar_keys:
+                    similar_data = get_cached_recipe(similar_key)
+                    if isinstance(similar_data, dict) and 'original_url' in similar_data:
+                        original_url = similar_data['original_url']
+                        logger.info(f"Found original URL from similar key '{similar_key}': {original_url}")
+
+                        try:
+                            logger.info(f"Attempting fallback re-fetch from: {original_url}")
+                            recipe_json = get_recipe(original_url)
+                            if recipe_json:
+                                # Cache it using helper function
+                                cache_recipe(recipe_name, recipe_json, original_url)
+                                logger.info(f"Fallback successful! Re-cached {recipe_name}")
+                                break
+                            else:
+                                logger.error("Fallback failed - no recipe data")
+                        except Exception as e:
+                            logger.error(f"Fallback failed with error: {e}")
+                else:
+                    # No successful fallback found
+                    logger.error("No fallback possible - recipe not found")
+                    return "Recipe not found", 404
+            else:
+                logger.error("Recipe not found and no fallback available")
+                return "Recipe not found", 404
 
     logger.info(f"Recipe '{recipe_name}' ready for rendering")
     logger.info(f"Recipe has name: {recipe_json.get('name', 'NO NAME')}")

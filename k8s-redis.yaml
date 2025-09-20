@@ -29,7 +29,7 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
-        # Redis configuration for caching
+        # Redis configuration for caching with auto-fetch fallback
         command:
         - redis-server
         - --maxmemory
@@ -37,7 +37,7 @@ spec:
         - --maxmemory-policy
         - "allkeys-lru"
         - --save
-        - ""  # Disable persistence for cache-only use
+        - ""  # Disable persistence - we have auto-fetch!
         livenessProbe:
           tcpSocket:
             port: 6379
