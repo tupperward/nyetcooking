@@ -7,20 +7,8 @@ on:
       - completed
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        type: choice
-        options:
-          - production
-          - staging
-        default: 'production'
-      image_tag:
-        description: 'Docker image tag to deploy (default: latest)'
-        required: false
-        default: 'latest'
+
+
 
 jobs:
   deploy:
@@ -28,14 +16,6 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DO_TOKEN }}
-
       - name: Set up kubectl
         uses: matootie/dokube@v1.4.0
         with:
