@@ -1,16 +1,19 @@
 name: Build and Push Docker Image
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Test Suite"]
+    types:
+      - completed
     branches:
       - main
       - flask-rewrite
       - flask-rewrite-redis
-    tags:
-      - 'v*'
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Custom image tag (optional)'
+        required: false
 
 env:
   REGISTRY: docker.io
@@ -19,6 +22,8 @@ env:
 jobs:
   build:
     runs-on: nyetcooking-runners
+    # Only build if tests passed or manually triggered
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     permissions:
       contents: read
       packages: write
