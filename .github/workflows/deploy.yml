@@ -7,7 +7,6 @@ on:
       - completed
     branches:
       - main
-      - flask-rewrite-redis
   workflow_dispatch:
     inputs:
       environment:

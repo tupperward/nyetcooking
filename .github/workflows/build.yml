@@ -7,8 +7,6 @@ on:
       - completed
     branches:
       - main
-      - flask-rewrite
-      - flask-rewrite-redis
   workflow_dispatch:
     inputs:
       image_tag:
