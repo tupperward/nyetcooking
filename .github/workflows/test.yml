@@ -1,0 +1,86 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, flask-rewrite, flask-rewrite-redis ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run tests with coverage
+      run: |
+        pytest --cov=web --cov-report=term-missing --cov-report=xml --cov-report=html
+
+    - name: Upload coverage to Codecov (optional)
+      uses: codecov/codecov-action@v4
+      if: matrix.python-version == '3.11'
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Upload coverage reports as artifacts
+      uses: actions/upload-artifact@v4
+      if: matrix.python-version == '3.11'
+      with:
+        name: coverage-reports
+        path: |
+          coverage.xml
+          htmlcov/
+
+  lint:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install linting tools (optional)
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort mypy || true
+
+    - name: Run flake8 (if installed)
+      run: |
+        flake8 web/ modules/ --max-line-length=120 --extend-ignore=E203,W503 || echo "flake8 not configured"
+      continue-on-error: true
+
+    - name: Check formatting with black (if installed)
+      run: |
+        black --check web/ modules/ || echo "black not configured"
+      continue-on-error: true

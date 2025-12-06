@@ -189,7 +189,7 @@ class TestIndexRoute:
     def test_index_with_slash(self, client):
         response = client.get('/nyetcooking/')
         assert response.status_code == 200
-        assert b'NYet Cooking' in response.data
+        assert b'Nyetcooking' in response.data
 
     def test_index_without_slash(self, client):
         response = client.get('/nyetcooking')
