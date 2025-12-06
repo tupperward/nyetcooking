@@ -10,18 +10,14 @@ jobs:
   test:
     runs-on: nyetcooking-runners
 
-    strategy:
-      matrix:
-        python-version: ['3.9', '3.10', '3.11']
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.9'
 
     - name: Cache pip dependencies
       uses: actions/cache@v4
@@ -42,7 +38,6 @@ jobs:
 
     - name: Upload coverage to Codecov (optional)
       uses: codecov/codecov-action@v4
-      if: matrix.python-version == '3.11'
       with:
         file: ./coverage.xml
         flags: unittests
@@ -51,7 +46,6 @@ jobs:
 
     - name: Upload coverage reports as artifacts
       uses: actions/upload-artifact@v4
-      if: matrix.python-version == '3.11'
       with:
         name: coverage-reports
         path: |
