@@ -1,0 +1,18 @@
+CLAUDE.md
+.claude/
+
+# Test coverage reports
+htmlcov/
+.coverage
+coverage.xml
+*.coverage
+
+# Pytest cache
+.pytest_cache/
+__pycache__/
+
+# Python virtual environments
+venv/
+env/
+virtualenv/
+.venv/

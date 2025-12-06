@@ -1,0 +1,70 @@
+---
+# Redis StatefulSet with Persistent Storage
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: blog
+  labels:
+    app: redis
+spec:
+  serviceName: redis-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        # Redis configuration with persistence and TTL
+        command:
+        - redis-server
+        - --maxmemory
+        - "64mb"
+        - --maxmemory-policy
+        - "allkeys-lru"
+        - --save
+        - "3600 1"  # Save if at least 1 key changed in 3600 seconds (1 hour)
+        - --save
+        - "300 100"  # Save if at least 100 keys changed in 300 seconds (5 min)
+        - --save
+        - "60 10000"  # Save if at least 10000 keys changed in 60 seconds
+        - --appendonly
+        - "yes"  # Enable AOF persistence for better durability
+        - --appendfsync
+        - "everysec"  # Fsync every second (good balance of performance and safety)
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 5Gi
