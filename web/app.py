@@ -7,6 +7,30 @@ import logging
 import sys
 import traceback
 import os
+import time
+from urllib.parse import quote, unquote
+
+# URL normalization helpers
+def normalize_url_for_path(url):
+    """Convert full URL to clean path format (remove protocol and www)"""
+    # Remove protocol
+    clean = re.sub(r'^https?://', '', url)
+    # Remove www.
+    clean = re.sub(r'^www\.', '', clean)
+    return clean
+
+def denormalize_path_to_url(path):
+    """Convert clean path back to full URL (add https://)"""
+    # Try with https:// first
+    url = f"https://{path}"
+    return url
+
+def denormalize_path_to_url_with_www(path):
+    """Convert clean path to full URL with www. prefix"""
+    # Some sites require www.
+    if not path.startswith('www.'):
+        return f"https://www.{path}"
+    return f"https://{path}"
 
 # Configure logging for k8s
 logging.basicConfig(
@@ -19,20 +43,45 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Redis setup with fallback to in-memory cache
-try:
-    import redis
+def connect_to_redis_with_retry(max_retries=5, initial_delay=1):
+    """
+    Attempt to connect to Redis with exponential backoff.
+    Returns tuple: (redis_client, success_bool)
+    """
+    try:
+        import redis
+    except ImportError:
+        logger.warning("Redis module not available")
+        return None, False
+
     redis_host = os.getenv('REDIS_HOST', 'localhost')
     redis_port = int(os.getenv('REDIS_PORT', '6379'))
-    redis_client = redis.Redis(host=redis_host, port=redis_port, db=0, decode_responses=True, socket_connect_timeout=5)
-    # Test connection
-    redis_client.ping()
-    logger.info(f"Redis connected successfully at {redis_host}:{redis_port}")
-    USE_REDIS = True
-except Exception as e:
-    logger.warning(f"Redis connection failed: {e}")
-    logger.info("Falling back to in-memory cache")
-    redis_client = None
-    USE_REDIS = False
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            logger.info(f"Attempting to connect to Redis at {redis_host}:{redis_port} (attempt {attempt}/{max_retries})")
+            client = redis.Redis(
+                host=redis_host,
+                port=redis_port,
+                db=0,
+                decode_responses=True,
+                socket_connect_timeout=5
+            )
+            # Test connection
+            client.ping()
+            logger.info(f"Redis connected successfully at {redis_host}:{redis_port}")
+            return client, True
+        except Exception as e:
+            if attempt < max_retries:
+                delay = initial_delay * (2 ** (attempt - 1))  # Exponential backoff
+                logger.warning(f"Redis connection attempt {attempt} failed: {e}. Retrying in {delay}s...")
+                time.sleep(delay)
+            else:
+                logger.warning(f"Redis connection failed after {max_retries} attempts: {e}")
+                logger.info("Falling back to in-memory cache")
+                return None, False
+
+redis_client, USE_REDIS = connect_to_redis_with_retry()
 
 # Log startup information immediately
 logger.info("=== NYet Cooking Flask App Initializing ===")
@@ -62,7 +111,7 @@ def cache_recipe(slug, recipe_data, original_url):
 
     if USE_REDIS:
         try:
-            redis_client.setex(f"recipe:{slug}", 3600, json.dumps(cache_data))  # 1 hour TTL
+            redis_client.setex(f"recipe:{slug}", 2592000, json.dumps(cache_data))  # 30 day TTL (1 month)
             logger.info(f"Cached recipe '{slug}' in Redis")
         except Exception as e:
             logger.error(f"Redis cache failed, falling back to memory: {e}")
@@ -105,6 +154,26 @@ def get_cache_keys():
             return list(recipe_cache.keys())
     else:
         return list(recipe_cache.keys())
+
+def get_recipe_with_retry(url, max_retries=3, retry_delay=2):
+    """Fetch recipe with retry logic"""
+    last_error = None
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            logger.info(f"Fetching recipe (attempt {attempt}/{max_retries})")
+            return get_recipe(url)
+        except Exception as e:
+            last_error = e
+            if attempt < max_retries:
+                logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"All {max_retries} attempts failed. Last error: {e}")
+
+    # If we get here, all retries failed
+    raise last_error
+
 def get_recipe(url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -147,8 +216,15 @@ def get_recipe(url):
             data = json.loads(script_tag.string.strip())
             logger.info(f"Script tag {i} parsed successfully, type: {type(data)}")
 
+            # Handle @graph format (used by some sites like Minimalist Baker, Yoast SEO)
+            if isinstance(data, dict) and '@graph' in data:
+                logger.info(f"Found @graph with {len(data['@graph'])} items")
+                items = data['@graph']
             # Handle both single objects and arrays
-            items = data if isinstance(data, list) else [data]
+            elif isinstance(data, list):
+                items = data
+            else:
+                items = [data]
 
             for j, item in enumerate(items):
                 logger.info(f"Item {j} in script {i}: @type = {item.get('@type', 'unknown')}")
@@ -185,6 +261,42 @@ def get_recipe(url):
         logger.warning("Recipe has no instructions")
 
     logger.info(f"Successfully extracted recipe: {recipe_json.get('name', 'unnamed')}")
+
+    # Try to extract additional data from __NEXT_DATA__ (for NYT Cooking)
+    try:
+        next_data_script = soup.find("script", attrs={"id": "__NEXT_DATA__"})
+        if next_data_script and next_data_script.string:
+            next_data = json.loads(next_data_script.string.strip())
+            logger.info("Found __NEXT_DATA__ block")
+
+            # Navigate to recipe data in Next.js structure
+            # Typical path: props.pageProps.recipe
+            recipe_data = (
+                next_data.get('props', {})
+                .get('pageProps', {})
+                .get('recipe', {})
+            )
+
+            if recipe_data:
+                # Extract tips if available
+                tips = recipe_data.get('tip_data') or recipe_data.get('tips')
+                if tips:
+                    recipe_json['tips'] = tips
+                    logger.info(f"Extracted {len(tips)} tips from __NEXT_DATA__")
+
+                # You can extract other fields here as needed
+                # Example: notes, variations, etc.
+                if recipe_data.get('notes'):
+                    recipe_json['notes'] = recipe_data['notes']
+                    logger.info("Extracted notes from __NEXT_DATA__")
+            else:
+                logger.info("No recipe data found in __NEXT_DATA__")
+        else:
+            logger.info("No __NEXT_DATA__ script found on page")
+    except Exception as e:
+        logger.warning(f"Failed to extract __NEXT_DATA__: {e}")
+        # Don't fail the whole request if __NEXT_DATA__ extraction fails
+
     return recipe_json
 
 def extract_nyt_recipe_id(url):
@@ -244,6 +356,18 @@ def recipe_to_markdown(recipe_json):
         md += f"{i}. {instruction}\n"
     md += "\n"
 
+    # Tips
+    if recipe_json.get('tips'):
+        md += "## Tips\n\n"
+        for tip in recipe_json['tips']:
+            md += f"- {tip}\n"
+        md += "\n"
+
+    # Notes
+    if recipe_json.get('notes'):
+        md += "## Notes\n\n"
+        md += f"{recipe_json['notes']}\n\n"
+
     # Rating
     if recipe_json.get('aggregateRating') and recipe_json['aggregateRating'].get('ratingValue'):
         rating = recipe_json['aggregateRating']['ratingValue']
@@ -263,7 +387,25 @@ def health():
         # Simple health check - verify we can import required modules
         import json, requests, bs4
         import datetime
-        return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat()}, 200
+
+        health_status = {
+            "status": "healthy",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "cache_backend": "redis" if USE_REDIS else "in-memory"
+        }
+
+        # Check Redis connectivity if enabled
+        if USE_REDIS and redis_client:
+            try:
+                redis_client.ping()
+                health_status["redis"] = "connected"
+            except Exception as redis_error:
+                logger.warning(f"Redis health check failed: {redis_error}")
+                health_status["redis"] = "disconnected"
+                health_status["redis_error"] = str(redis_error)
+                # Still return 200 since app falls back to in-memory cache
+
+        return health_status, 200
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return {"status": "unhealthy", "error": str(e)}, 500
@@ -281,7 +423,13 @@ def process_recipe():
 
     try:
         logger.info(f"=== Processing recipe URL: {recipe_url} ===")
-        recipe_json = get_recipe(recipe_url)
+
+        # Normalize URL for clean path
+        clean_path = normalize_url_for_path(recipe_url)
+        logger.info(f"Normalized path: {clean_path}")
+
+        # Fetch recipe (will be cached automatically in the route handler)
+        recipe_json = get_recipe_with_retry(recipe_url)
 
         if not recipe_json:
             logger.error("get_recipe returned None or empty data")
@@ -289,28 +437,20 @@ def process_recipe():
 
         logger.info(f"Recipe data keys: {list(recipe_json.keys()) if recipe_json else 'None'}")
 
-        recipe_slug = get_recipe_slug(recipe_json, recipe_url)
-        logger.info(f"Generated slug: {recipe_slug}")
+        # Cache using clean path as key
+        cache_recipe(clean_path, recipe_json, recipe_url)
+        logger.info(f"Cached recipe at path: {clean_path}")
 
-        # Cache recipe using helper function
-        cache_recipe(recipe_slug, recipe_json, recipe_url)
-        logger.info(f"Cache now contains: {get_cache_keys()}")
-
-        # Verify the recipe was actually cached
-        cached_recipe = get_cached_recipe(recipe_slug)
-        if cached_recipe:
-            logger.info(f"Cache verification successful for '{recipe_slug}'")
-        else:
-            logger.error(f"Cache verification FAILED for '{recipe_slug}'!")
-
-        logger.info(f"Redirecting to /nyetcooking/{recipe_slug}")
-        return redirect(f"/nyetcooking/{recipe_slug}")
+        # Redirect to new URL-based path
+        logger.info(f"Redirecting to /nyetcooking/{clean_path}")
+        return redirect(f"/nyetcooking/{clean_path}")
     except Exception as e:
         logger.error(f"ERROR in process_recipe: {str(e)}")
         logger.error(f"ERROR type: {type(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return f"Error processing recipe: {str(e)}", 400
 
+@app.route('/nyetcooking/<int:recipe_id>')
 @app.route('/nyetcooking/recipes/<int:recipe_id>')
 @app.route('/nyetcooking/recipes/<int:recipe_id>-<recipe_name>')
 def nyt_recipe_auto_fetch(recipe_id, recipe_name=None):
@@ -338,7 +478,7 @@ def nyt_recipe_auto_fetch(recipe_id, recipe_name=None):
         logger.info(f"Auto-fetching NYT recipe {recipe_id} from: {nyt_url}")
 
         try:
-            recipe_json = get_recipe(nyt_url)
+            recipe_json = get_recipe_with_retry(nyt_url)
             if recipe_json:
                 # Generate proper slug and cache
                 recipe_slug = get_recipe_slug(recipe_json, nyt_url)
@@ -363,89 +503,60 @@ def nyt_recipe_auto_fetch(recipe_id, recipe_name=None):
         logger.info(f"Rendering auto-fetched recipe {recipe_id}")
         return render_template('recipe_card.html', recipe=recipe_json)
 
-@app.route('/nyetcooking/<recipe_name>')
-def recipe_card(recipe_name):
-    logger.info(f"=== Recipe card requested for: {recipe_name} ===")
-    cache_keys = get_cache_keys()
-    logger.info(f"Current cache keys: {cache_keys}")
-    logger.info(f"Cache size: {len(cache_keys)}")
+@app.route('/nyetcooking/<path:recipe_path>')
+def recipe_card(recipe_path):
+    logger.info(f"=== Recipe card requested for path: {recipe_path} ===")
 
-    cached_data = get_cached_recipe(recipe_name)
+    # Check if it's the markdown export endpoint
+    if recipe_path.endswith('/markdown'):
+        # Strip /markdown and handle separately
+        actual_path = recipe_path[:-9]  # Remove '/markdown'
+        return recipe_markdown(actual_path)
+
+    # Try cache first using the clean path
+    cached_data = get_cached_recipe(recipe_path)
 
     if cached_data and isinstance(cached_data, dict) and 'recipe' in cached_data:
-        # New format with URL stored
+        # Found in cache
         recipe_json = cached_data['recipe']
         original_url = cached_data['original_url']
-        logger.info(f"Recipe '{recipe_name}' found in cache with URL: {original_url}")
+        logger.info(f"Recipe found in cache with URL: {original_url}")
     elif cached_data:
-        # Old format (just recipe data) - still works
+        # Old format (just recipe data)
         recipe_json = cached_data
-        original_url = None
-        logger.info(f"Recipe '{recipe_name}' found in cache (old format)")
+        logger.info(f"Recipe found in cache (old format)")
     else:
-        # Not in cache - check if this is a NYT recipe ID format and auto-fetch
-        logger.warning(f"Recipe '{recipe_name}' not found in cache")
+        # Not in cache - try to fetch from URL in path
+        logger.warning(f"Recipe '{recipe_path}' not found in cache")
 
-        # Check if this looks like a NYT recipe (starts with digits)
-        match = re.match(r'^(\d+)-(.+)$', recipe_name)
-        if match:
-            recipe_id = match.group(1)
-            logger.info(f"Detected NYT recipe format with ID: {recipe_id}")
+        # Try to reconstruct URL from path
+        urls_to_try = [
+            denormalize_path_to_url(recipe_path),  # Try https://
+            denormalize_path_to_url_with_www(recipe_path),  # Try https://www.
+        ]
 
-            # Auto-fetch from NYT
-            nyt_url = f"https://cooking.nytimes.com/recipes/{recipe_id}"
-            logger.info(f"Auto-fetching NYT recipe {recipe_id} from: {nyt_url}")
+        recipe_json = None
+        successful_url = None
 
+        for attempt, url in enumerate(urls_to_try, 1):
+            logger.info(f"Attempt {attempt}/{len(urls_to_try)}: Trying to fetch from {url}")
             try:
-                recipe_json = get_recipe(nyt_url)
+                recipe_json = get_recipe_with_retry(url, max_retries=2)
                 if recipe_json:
-                    # Cache it with the requested slug
-                    cache_recipe(recipe_name, recipe_json, nyt_url)
-                    logger.info(f"Auto-fetched and cached recipe as: {recipe_name}")
-                else:
-                    logger.error(f"Failed to fetch recipe {recipe_id}")
-                    return "Recipe not found at NYT Cooking", 404
+                    logger.info(f"Successfully fetched from {url}")
+                    successful_url = url
+                    # Cache it using the clean path
+                    cache_recipe(recipe_path, recipe_json, url)
+                    break
             except Exception as e:
-                logger.error(f"Error auto-fetching recipe {recipe_id}: {e}")
-                return f"Error fetching recipe: {e}", 400
-        else:
-            # Try fallback with similar keys (existing logic)
-            cache_keys = get_cache_keys()
-            logger.info(f"Available recipes: {cache_keys}")
+                logger.warning(f"Failed to fetch from {url}: {e}")
+                continue
 
-            # Add some debug info about similar keys
-            similar_keys = [k for k in cache_keys if recipe_name in k or k in recipe_name]
-            if similar_keys:
-                logger.info(f"Similar keys found: {similar_keys}")
-                # Try to get URL from similar key
-                for similar_key in similar_keys:
-                    similar_data = get_cached_recipe(similar_key)
-                    if isinstance(similar_data, dict) and 'original_url' in similar_data:
-                        original_url = similar_data['original_url']
-                        logger.info(f"Found original URL from similar key '{similar_key}': {original_url}")
+        if not recipe_json:
+            logger.error(f"Failed to fetch recipe from any URL variant of {recipe_path}")
+            return render_template('404.html', recipe_name=recipe_path), 404
 
-                        try:
-                            logger.info(f"Attempting fallback re-fetch from: {original_url}")
-                            recipe_json = get_recipe(original_url)
-                            if recipe_json:
-                                # Cache it using helper function
-                                cache_recipe(recipe_name, recipe_json, original_url)
-                                logger.info(f"Fallback successful! Re-cached {recipe_name}")
-                                break
-                            else:
-                                logger.error("Fallback failed - no recipe data")
-                        except Exception as e:
-                            logger.error(f"Fallback failed with error: {e}")
-                else:
-                    # No successful fallback found
-                    logger.error("No fallback possible - recipe not found")
-                    return "Recipe not found", 404
-            else:
-                logger.error("Recipe not found and no fallback available")
-                return "Recipe not found", 404
-
-    logger.info(f"Recipe '{recipe_name}' ready for rendering")
-    logger.info(f"Recipe has name: {recipe_json.get('name', 'NO NAME')}")
+    logger.info(f"Recipe ready for rendering: {recipe_json.get('name', 'NO NAME')}")
 
     try:
         return render_template('recipe_card.html', recipe=recipe_json)
@@ -454,40 +565,38 @@ def recipe_card(recipe_name):
         logger.error(f"Traceback: {traceback.format_exc()}")
         return f"Template rendering error: {e}", 500
 
-@app.route('/nyetcooking/<recipe_name>/markdown')
-def recipe_markdown(recipe_name):
-    cached_data = get_cached_recipe(recipe_name)
+def recipe_markdown(recipe_path):
+    """Handle markdown export - called from recipe_card route"""
+    cached_data = get_cached_recipe(recipe_path)
 
     if cached_data and isinstance(cached_data, dict) and 'recipe' in cached_data:
-        # New format with URL stored
+        # Found in cache
         recipe_json = cached_data['recipe']
     elif cached_data:
-        # Old format (just recipe data) - still works
+        # Old format
         recipe_json = cached_data
     else:
-        logger.warning(f"Recipe '{recipe_name}' not found in cache for markdown export")
+        # Not in cache - try to fetch
+        logger.warning(f"Recipe '{recipe_path}' not found in cache for markdown export")
 
-        # Try to find it in cache and use its URL
-        cache_keys = get_cache_keys()
-        similar_keys = [k for k in cache_keys if recipe_name in k or k in recipe_name]
-        if similar_keys:
-            for similar_key in similar_keys:
-                similar_data = get_cached_recipe(similar_key)
-                if isinstance(similar_data, dict) and 'original_url' in similar_data:
-                    original_url = similar_data['original_url']
-                    try:
-                        logger.info(f"Markdown fallback re-fetch from: {original_url}")
-                        recipe_json = get_recipe(original_url)
-                        if recipe_json:
-                            # Cache it using helper function
-                            cache_recipe(recipe_name, recipe_json, original_url)
-                            logger.info(f"Markdown fallback successful for {recipe_name}")
-                            break
-                    except Exception as e:
-                        logger.error(f"Markdown fallback failed: {e}")
-            else:
-                return "Recipe not found", 404
-        else:
+        urls_to_try = [
+            denormalize_path_to_url(recipe_path),
+            denormalize_path_to_url_with_www(recipe_path),
+        ]
+
+        recipe_json = None
+        for url in urls_to_try:
+            try:
+                logger.info(f"Markdown export: Trying to fetch from {url}")
+                recipe_json = get_recipe_with_retry(url, max_retries=2)
+                if recipe_json:
+                    cache_recipe(recipe_path, recipe_json, url)
+                    break
+            except Exception as e:
+                logger.warning(f"Markdown export fetch failed: {e}")
+                continue
+
+        if not recipe_json:
             return "Recipe not found", 404
 
     return recipe_to_markdown(recipe_json), 200, {'Content-Type': 'text/plain; charset=utf-8'}

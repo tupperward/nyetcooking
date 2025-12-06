@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Recipe Not Found - NYet Cooking</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="https://worstwizard.online/mage.png">
+    <link rel="stylesheet" href="https://worstwizard.online/css/styles.43ee99b54232661dd9ded14dced8cab56cfc208d9b1cd7fc75f4bc3973f80a4957d7330ced2d8e5ad3390d3a28ad121be3e6db4701ac0b84fa518a99b482e717.css">
+    <style>
+      .container {
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 30px;
+        background: var(--bg);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+      }
+      h1 {
+        color: var(--fg);
+        font-family: var(--serif);
+        font-weight: 700;
+        margin-bottom: 20px;
+      }
+      p {
+        color: var(--fg);
+        margin: 15px 0;
+        line-height: 1.6;
+      }
+      .recipe-name {
+        font-family: monospace;
+        background: var(--hover);
+        padding: 5px 10px;
+        border-radius: 4px;
+        display: inline-block;
+        margin: 10px 0;
+      }
+      a {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 12px 24px;
+        background-color: var(--accent);
+        color: var(--bg);
+        text-decoration: none;
+        border-radius: 4px;
+        transition: background-color 0.3s ease;
+      }
+      a:hover {
+        background-color: var(--hover);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Recipe Not Found</h1>
+      <p>The recipe <span class="recipe-name">{{ recipe_name }}</span> was not found in our cache.</p>
+      <p>This could mean:</p>
+      <ul style="text-align: left; display: inline-block; color: var(--fg);">
+        <li>The recipe was never processed</li>
+        <li>The cache entry expired</li>
+        <li>The recipe slug is incorrect</li>
+      </ul>
+      <p>To process this recipe, return to the home page and enter the original recipe URL.</p>
+      <a href="/nyetcooking/">Return to Home</a>
+    </div>
+  </body>
+</html>

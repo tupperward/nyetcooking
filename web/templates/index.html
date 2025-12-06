@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>NYet Cooking - Recipe Card Generator</title>
+    <title>Nyetcooking - Recipe Card Generator</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" type="image/png" href="https://worstwizard.online/mage.png">
@@ -37,6 +37,7 @@
         border: 2px solid var(--hover);
         border-radius: 4px;
         font-size: 16px;
+        font-family: inherit;
         box-sizing: border-box;
         background: var(--bg);
         color: var(--fg);
@@ -44,6 +45,10 @@
       input[type="url"]:focus {
         border-color: var(--accent);
         outline: none;
+      }
+      input[type="url"]::placeholder {
+        color: var(--dim);
+        opacity: 0.7;
       }
       button {
         background-color: var(--accent);
@@ -53,6 +58,7 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 16px;
+        font-family: inherit;
         width: 100%;
         transition: background-color 0.3s ease;
       }
@@ -73,7 +79,7 @@
   </head>
   <body>
     <div class="container">
-      <h1>NYet Cooking</h1>
+      <h1>Nyetcooking</h1>
       <p>Generate a recipe card from any recipe URL</p>
 
       <form action="/nyetcooking/process" method="POST">

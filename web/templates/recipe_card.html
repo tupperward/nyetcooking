@@ -13,6 +13,12 @@
     {% if recipe.image %}
         {% if recipe.image is string %}
             <meta property="og:image" content="{{ recipe.image }}">
+        {% elif recipe.image is mapping %}
+            {% if recipe.image.url %}
+                <meta property="og:image" content="{{ recipe.image.url }}">
+            {% elif recipe.image.contentUrl %}
+                <meta property="og:image" content="{{ recipe.image.contentUrl }}">
+            {% endif %}
         {% elif recipe.image is iterable and recipe.image[0] %}
             {% if recipe.image[0] is string %}
                 <meta property="og:image" content="{{ recipe.image[0] }}">
@@ -33,6 +39,12 @@
     {% if recipe.image %}
         {% if recipe.image is string %}
             <meta name="twitter:image" content="{{ recipe.image }}">
+        {% elif recipe.image is mapping %}
+            {% if recipe.image.url %}
+                <meta name="twitter:image" content="{{ recipe.image.url }}">
+            {% elif recipe.image.contentUrl %}
+                <meta name="twitter:image" content="{{ recipe.image.contentUrl }}">
+            {% endif %}
         {% elif recipe.image is iterable and recipe.image[0] %}
             {% if recipe.image[0] is string %}
                 <meta name="twitter:image" content="{{ recipe.image[0] }}">
@@ -170,6 +182,28 @@
             color: var(--fg);
         }
 
+        .tips-section, .notes-section {
+            background-color: var(--hl_bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            border: 1px solid var(--hover);
+        }
+
+        .tips-section ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .tips-section li {
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        .notes-section p {
+            line-height: 1.6;
+        }
+
         .rating {
             background-color: var(--hl_bg);
             padding: 15px;
@@ -300,6 +334,13 @@
         {% if recipe.image %}
             {% if recipe.image is string %}
                 <img src="{{ recipe.image }}" alt="{{ recipe.name }}">
+            {% elif recipe.image is mapping %}
+                {# Handle single ImageObject: {"@type": "ImageObject", "url": "..."} #}
+                {% if recipe.image.url %}
+                    <img src="{{ recipe.image.url }}" alt="{{ recipe.name }}">
+                {% elif recipe.image.contentUrl %}
+                    <img src="{{ recipe.image.contentUrl }}" alt="{{ recipe.name }}">
+                {% endif %}
             {% elif recipe.image is iterable and recipe.image[0] %}
                 {% if recipe.image[0] is string %}
                     <img src="{{ recipe.image[0] }}" alt="{{ recipe.name }}">
@@ -361,6 +402,24 @@
                 </ol>
             </div>
         </div>
+
+        {% if recipe.tips %}
+        <div class="tips-section">
+            <h2>Tips</h2>
+            <ul>
+                {% for tip in recipe.tips %}
+                <li>{{ tip }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if recipe.notes %}
+        <div class="notes-section">
+            <h2>Notes</h2>
+            <p>{{ recipe.notes }}</p>
+        </div>
+        {% endif %}
 
         {% if recipe.aggregateRating and recipe.aggregateRating.ratingValue %}
         <div class="rating">
