@@ -22,138 +22,19 @@ on:
         required: false
         default: 'latest'
 
-env:
-  NAMESPACE: ${{ vars.NAMESPACE }}
-  DEPLOYMENT_NAME: ${{ vars.RESOURCE_NAME }}
-  IMAGE_NAME: ${{ vars.DOCKER_IMAGE }}
-
 jobs:
   deploy:
     runs-on: nyetcooking-runners
-    # Only deploy if the build workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-
-    environment:
-      name: ${{ inputs.environment || 'production' }}
-      url: https://nyetcooking.worstwizard.online
-
+    permissions:
+      contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DO_TOKEN }}
-
+      # Set up the Kubernetes CLI with your DigitalOcean Kubernetes cluster.
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
+        uses: matootie/dokube@v1.4.0
         with:
-          version: 'latest'
+          personalAccessToken: ${{ secrets.DO_TOKEN }}
+          clusterName: ${{ vars.CLUSTER_NAME}}
 
-      - name: Configure kubeconfig
-        run: |
-          doctl kubernetes cluster kubeconfig save ${{ vars.CLUSTER_NAME }}
-
-      - name: Verify cluster connection
-        run: |
-          kubectl cluster-info
-          kubectl get nodes
-
-      - name: Determine image tag
-        id: image_tag
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG="${{ inputs.image_tag }}"
-          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            TAG="latest"
-          else
-            # Use branch name and short SHA for non-main branches
-            BRANCH=$(echo ${GITHUB_REF#refs/heads/} | sed 's/\//-/g')
-            TAG="${BRANCH}-${GITHUB_SHA::7}"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Deploying image tag: $TAG"
-
-      - name: Update deployment image
-        run: |
-          kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
-            ${{ env.DEPLOYMENT_NAME }}=${{ env.IMAGE_NAME }}:${{ steps.image_tag.outputs.tag }} \
-            -n ${{ env.NAMESPACE }} \
-            --record
-
-      - name: Wait for rollout to complete
-        run: |
-          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} \
-            -n ${{ env.NAMESPACE }} \
-            --timeout=5m
-
-      - name: Verify deployment
-        run: |
-          echo "## Deployment Verification" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Get deployment status
-          kubectl get deployment ${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }} -o wide >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Get pod status
-          echo "### Pods:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          kubectl get pods -n ${{ env.NAMESPACE }} -l app=${{ env.DEPLOYMENT_NAME }} >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Get recent events
-          echo "### Recent Events:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -10 >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-      - name: Check application health
-        run: |
-          # Wait a bit for pods to be fully ready
-          sleep 10
-
-          # Get one of the pod names
-          POD=$(kubectl get pods -n ${{ env.NAMESPACE }} -l app=${{ env.DEPLOYMENT_NAME }} -o jsonpath='{.items[0].metadata.name}')
-
-          # Port-forward and check health endpoint
-          kubectl port-forward -n ${{ env.NAMESPACE }} $POD 5000:5000 &
-          PF_PID=$!
-
-          sleep 5
-
-          # Check health endpoint
-          HEALTH=$(curl -s http://localhost:5000/health || echo "failed")
-
-          kill $PF_PID || true
-
-          echo "### Health Check:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-          echo "$HEALTH" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-          if echo "$HEALTH" | grep -q "healthy"; then
-            echo "✅ **Deployment successful!**" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Health check failed!**" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-      - name: Deployment success notification
-        if: success()
-        run: |
-          echo "🚀 Deployment completed successfully!"
-          echo "Image: ${{ env.IMAGE_NAME }}:${{ steps.image_tag.outputs.tag }}"
-          echo "Namespace: ${{ env.NAMESPACE }}"
-          echo "Deployment: ${{ env.DEPLOYMENT_NAME }}"
-
-      - name: Rollback on failure
-        if: failure()
-        run: |
-          echo "❌ Deployment failed! Rolling back..."
-          kubectl rollout undo deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
-          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }} --timeout=3m
-          echo "🔄 Rollback completed"
-          exit 1
+      # Run any kubectl commands you want!
+      - name: Roll Pods
+        run: kubectl rollout restart ${{ vars.RESOURCE }} -n ${{ vars.NAMESPACE }} ${{ vars.RESOURCE_NAME }}
