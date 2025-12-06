@@ -2,7 +2,7 @@ name: Test Suite
 
 on:
   push:
-    branches: [ main, flask-rewrite, flask-rewrite-redis ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
