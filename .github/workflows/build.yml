@@ -15,7 +15,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: tupperward/nyetcooking
+  IMAGE_NAME: ${{ vars.DOCKER_IMAGE }}
 
 jobs:
   build:

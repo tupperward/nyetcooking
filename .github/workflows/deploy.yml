@@ -23,9 +23,9 @@ on:
         default: 'latest'
 
 env:
-  NAMESPACE: blog
-  DEPLOYMENT_NAME: nyetcooking
-  IMAGE_NAME: tupperward/nyetcooking
+  NAMESPACE: ${{ vars.NAMESPACE }}
+  DEPLOYMENT_NAME: ${{ vars.RESOURCE_NAME }}
+  IMAGE_NAME: ${{ vars.DOCKER_IMAGE }}
 
 jobs:
   deploy:
