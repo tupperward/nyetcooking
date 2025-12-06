@@ -30,7 +30,7 @@ env:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: nyetcooking-k8s-runners
     # Only deploy if the build workflow succeeded
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
