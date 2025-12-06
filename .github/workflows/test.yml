@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: nyetcooking-k8s-runners
+    runs-on: nyetcooking-runners
 
     strategy:
       matrix:
@@ -59,7 +59,7 @@ jobs:
           htmlcov/
 
   lint:
-    runs-on: nyetcooking-k8s-runners
+    runs-on: nyetcooking-runners
 
     steps:
     - name: Checkout code
