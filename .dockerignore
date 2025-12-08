@@ -1,1 +1,10 @@
 CLAUDE.md
+.claude/
+*.md
+k8s/
+tests/
+venv/
+.github/
+run_tests.sh
+rebuild.sh
+pytest.ini
