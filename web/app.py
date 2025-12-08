@@ -84,7 +84,7 @@ def connect_to_redis_with_retry(max_retries=5, initial_delay=1):
 redis_client, USE_REDIS = connect_to_redis_with_retry()
 
 # Log startup information immediately
-logger.info("=== NYet Cooking Flask App Initializing ===")
+logger.info("=== Nyetcooking Flask App Initializing ===")
 logger.info(f"Python version: {sys.version}")
 logger.info(f"Flask app name: {app.name}")
 logger.info(f"Cache backend: {'Redis' if USE_REDIS else 'In-memory'}")

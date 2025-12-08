@@ -9,7 +9,7 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="article">
     <meta property="og:title" content="{{ recipe.name }}">
-    <meta property="og:description" content="{% if recipe.description %}{{ recipe.description[:200] }}{% if recipe.description|length > 200 %}...{% endif %}{% else %}A delicious recipe from NYet Cooking{% endif %}">
+    <meta property="og:description" content="{% if recipe.description %}{{ recipe.description[:200] }}{% if recipe.description|length > 200 %}...{% endif %}{% else %}A delicious recipe from Nyetcooking{% endif %}">
     {% if recipe.image %}
         {% if recipe.image is string %}
             <meta property="og:image" content="{{ recipe.image }}">
@@ -30,12 +30,12 @@
         {% endif %}
     {% endif %}
     <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:site_name" content="NYet Cooking">
+    <meta property="og:site_name" content="Nyetcooking">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ recipe.name }}">
-    <meta name="twitter:description" content="{% if recipe.description %}{{ recipe.description[:200] }}{% if recipe.description|length > 200 %}...{% endif %}{% else %}A delicious recipe from NYet Cooking{% endif %}">
+    <meta name="twitter:description" content="{% if recipe.description %}{{ recipe.description[:200] }}{% if recipe.description|length > 200 %}...{% endif %}{% else %}A delicious recipe from Nyetcooking{% endif %}">
     {% if recipe.image %}
         {% if recipe.image is string %}
             <meta name="twitter:image" content="{{ recipe.image }}">
@@ -57,7 +57,7 @@
     {% endif %}
 
     <!-- Additional meta tags for better SEO -->
-    <meta name="description" content="{% if recipe.description %}{{ recipe.description[:160] }}{% if recipe.description|length > 160 %}...{% endif %}{% else %}A delicious recipe from NYet Cooking{% endif %}">
+    <meta name="description" content="{% if recipe.description %}{{ recipe.description[:160] }}{% if recipe.description|length > 160 %}...{% endif %}{% else %}A delicious recipe from Nyetcooking{% endif %}">
     {% if recipe.author and recipe.author.name %}
     <meta name="author" content="{{ recipe.author.name }}">
     {% endif %}

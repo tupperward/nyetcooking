@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Building and deploying NYet Cooking with Redis..."
+echo "Building and deploying Nyetcooking with Redis..."
 
 # Build and push Docker image
 echo "Building Docker image..."
