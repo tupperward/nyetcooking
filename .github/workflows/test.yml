@@ -1,8 +1,6 @@
 name: Test Suite
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -51,30 +49,3 @@ jobs:
         path: |
           coverage.xml
           htmlcov/
-
-  lint:
-    runs-on: nyetcooking-runners
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install linting tools (optional)
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 black isort mypy || true
-
-    - name: Run flake8 (if installed)
-      run: |
-        flake8 web/ modules/ --max-line-length=120 --extend-ignore=E203,W503 || echo "flake8 not configured"
-      continue-on-error: true
-
-    - name: Check formatting with black (if installed)
-      run: |
-        black --check web/ modules/ || echo "black not configured"
-      continue-on-error: true
