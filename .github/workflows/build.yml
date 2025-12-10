@@ -1,12 +1,8 @@
 name: Build and Push Docker Image
 
 on:
-  workflow_run:
-    workflows: ["Test Suite"]
-    types:
-      - completed
-    branches:
-      - main
+  push:
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       image_tag:
@@ -20,8 +16,6 @@ env:
 jobs:
   build:
     runs-on: nyetcooking-runners
-    # Only build if tests passed or manually triggered
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     permissions:
       contents: read
       packages: write
