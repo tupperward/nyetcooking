@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nyetcooking-ingress
+  namespace: blog
+  annotations:
+    cert-manager.io/cluster-issuer: prod-issuer
+    acme.cert-manager.io/http01-edit-in-place: "true"
+  labels:
+    name: nyetcooking-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: nyetcook.ing
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nyetcooking
+            port:
+              number: 5000
+  tls:
+  - hosts:
+    - nyetcook.ing
+    secretName: nyetcooking-tls

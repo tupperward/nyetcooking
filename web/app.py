@@ -410,16 +410,16 @@ def health():
         logger.error(f"Health check failed: {e}")
         return {"status": "unhealthy", "error": str(e)}, 500
 
-@app.route('/nyetcooking')
-@app.route('/nyetcooking/')
+
+@app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/nyetcooking/process', methods=['POST'])
+@app.route('/process', methods=['POST'])
 def process_recipe():
     recipe_url = request.form.get('recipe_url')
     if not recipe_url:
-        return redirect('/nyetcooking')
+        return redirect('/')
 
     try:
         logger.info(f"=== Processing recipe URL: {recipe_url} ===")
@@ -442,17 +442,17 @@ def process_recipe():
         logger.info(f"Cached recipe at path: {clean_path}")
 
         # Redirect to new URL-based path
-        logger.info(f"Redirecting to /nyetcooking/{clean_path}")
-        return redirect(f"/nyetcooking/{clean_path}")
+        logger.info(f"Redirecting to /{clean_path}")
+        return redirect(f"/{clean_path}")
     except Exception as e:
         logger.error(f"ERROR in process_recipe: {str(e)}")
         logger.error(f"ERROR type: {type(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return f"Error processing recipe: {str(e)}", 400
 
-@app.route('/nyetcooking/<int:recipe_id>')
-@app.route('/nyetcooking/recipes/<int:recipe_id>')
-@app.route('/nyetcooking/recipes/<int:recipe_id>-<recipe_name>')
+@app.route('/<int:recipe_id>')
+@app.route('/recipes/<int:recipe_id>')
+@app.route('/recipes/<int:recipe_id>-<recipe_name>')
 def nyt_recipe_auto_fetch(recipe_id, recipe_name=None):
     """Auto-fetch NYT recipes by ID if not cached"""
     # Try to find the recipe in cache first - check both formats
@@ -486,7 +486,7 @@ def nyt_recipe_auto_fetch(recipe_id, recipe_name=None):
                 logger.info(f"Auto-fetched and cached recipe as: {recipe_slug}")
 
                 # Redirect to the proper slug URL
-                return redirect(f"/nyetcooking/{recipe_slug}")
+                return redirect(f"/{recipe_slug}")
             else:
                 logger.error(f"Failed to fetch recipe {recipe_id}")
                 return "Recipe not found at NYT Cooking", 404
@@ -503,7 +503,7 @@ def nyt_recipe_auto_fetch(recipe_id, recipe_name=None):
         logger.info(f"Rendering auto-fetched recipe {recipe_id}")
         return render_template('recipe_card.html', recipe=recipe_json)
 
-@app.route('/nyetcooking/<path:recipe_path>')
+@app.route('/<path:recipe_path>')
 def recipe_card(recipe_path):
     logger.info(f"=== Recipe card requested for path: {recipe_path} ===")
 

@@ -21,7 +21,7 @@ pip install -r requirements.txt
 # Run the Flask development server
 python web/app.py
 
-# Visit http://localhost:5000/nyetcooking
+# Visit http://localhost:5000
 ```
 
 ### Production (Docker)
@@ -33,7 +33,7 @@ docker build -t tupperward/nyetcooking .
 # Run the container
 docker run -p 5000:5000 tupperward/nyetcooking
 
-# Visit http://localhost:5000/nyetcooking
+# Visit http://localhost:5000
 ```
 
 ### Production (Kubernetes)
@@ -95,11 +95,11 @@ pytest tests/test_app.py::TestRecipeSlug::test_basic_slug
 
 ### Application Flow
 
-1. User submits recipe URL via form at `/nyetcooking`
-2. `/nyetcooking/process` endpoint scrapes URL for JSON-LD structured data
+1. User submits recipe URL via form at `/`
+2. `/process` endpoint scrapes URL for JSON-LD structured data
 3. Recipe data is cached (Redis or in-memory) with slug-based keys
-4. User redirected to `/nyetcooking/<recipe-slug>` for formatted display
-5. Optional markdown export at `/nyetcooking/<recipe-slug>/markdown`
+4. User redirected to `/<recipe-slug>` for formatted display
+5. Optional markdown export at `/<recipe-slug>/markdown`
 
 ### Key Functions
 
@@ -137,7 +137,7 @@ The script performs:
 ## Development Notes
 
 - The app expects recipe pages to contain valid JSON-LD structured data
-- All routes are prefixed with `/nyetcooking` for subdirectory deployment
+- App now serves from root path at dedicated domain nyetcook.ing
 - Recipe images support multiple JSON-LD formats (string, array, object with url/contentUrl)
 - Print-optimized styles with `@media print` rules
 - External CSS framework from worstwizard.online

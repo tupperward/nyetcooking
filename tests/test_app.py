@@ -187,13 +187,9 @@ class TestIndexRoute:
     """Test main index route"""
 
     def test_index_with_slash(self, client):
-        response = client.get('/nyetcooking/')
+        response = client.get('/')
         assert response.status_code == 200
         assert b'Nyetcooking' in response.data
-
-    def test_index_without_slash(self, client):
-        response = client.get('/nyetcooking')
-        assert response.status_code == 200
 
 
 class TestRecipeProcessing:
@@ -203,23 +199,23 @@ class TestRecipeProcessing:
     def test_process_recipe_success(self, mock_get_recipe, client, sample_recipe):
         mock_get_recipe.return_value = sample_recipe
 
-        response = client.post('/nyetcooking/process', data={
+        response = client.post('/process', data={
             'recipe_url': 'https://example.com/recipe'
         }, follow_redirects=False)
 
         assert response.status_code == 302  # Redirect
         # Should redirect to clean path
-        assert response.location == '/nyetcooking/example.com/recipe'
+        assert response.location == '/example.com/recipe'
 
     def test_process_recipe_no_url(self, client):
-        response = client.post('/nyetcooking/process', data={})
+        response = client.post('/process', data={})
         assert response.status_code == 302  # Redirect to index
 
     @patch('web.app.get_recipe_with_retry')
     def test_process_recipe_failure(self, mock_get_recipe, client):
         mock_get_recipe.side_effect = ValueError("Failed to fetch")
 
-        response = client.post('/nyetcooking/process', data={
+        response = client.post('/process', data={
             'recipe_url': 'https://example.com/bad-recipe'
         })
 
@@ -278,14 +274,14 @@ class TestImageFormats:
         }
         cache_recipe('string-image-test', recipe, 'https://example.com')
 
-        response = client.get('/nyetcooking/string-image-test')
+        response = client.get('/string-image-test')
         assert response.status_code == 200
         assert b'https://example.com/image.jpg' in response.data
 
     def test_recipe_with_image_object(self, client, sample_recipe_with_image_object):
         cache_recipe('object-image-test', sample_recipe_with_image_object, 'https://example.com')
 
-        response = client.get('/nyetcooking/object-image-test')
+        response = client.get('/object-image-test')
         assert response.status_code == 200
         # Check that og:image meta tag is present
         assert b'og:image' in response.data
@@ -299,7 +295,7 @@ class TestImageFormats:
         }
         cache_recipe('array-image-test', recipe, 'https://example.com')
 
-        response = client.get('/nyetcooking/array-image-test')
+        response = client.get('/array-image-test')
         assert response.status_code == 200
         # Should use first image
         assert b'https://example.com/image1.jpg' in response.data
@@ -311,7 +307,7 @@ class TestMarkdownExport:
     def test_markdown_export(self, client, sample_recipe):
         cache_recipe('example.com/recipe', sample_recipe, 'https://example.com/recipe')
 
-        response = client.get('/nyetcooking/example.com/recipe/markdown')
+        response = client.get('/example.com/recipe/markdown')
         assert response.status_code == 200
         assert response.content_type == 'text/plain; charset=utf-8'
         assert b'# Test Recipe' in response.data
@@ -324,7 +320,7 @@ class TestMarkdownExport:
 
         mock_get_recipe.return_value = sample_recipe
 
-        response = client.get('/nyetcooking/example.com/recipe/markdown')
+        response = client.get('/example.com/recipe/markdown')
 
         assert response.status_code == 200
         assert mock_get_recipe.called
@@ -340,7 +336,7 @@ class TestPathBasedRouting:
         # Pre-cache the recipe
         cache_recipe('babi.sh/recipes/test-recipe', sample_recipe, 'https://babi.sh/recipes/test-recipe')
 
-        response = client.get('/nyetcooking/babi.sh/recipes/test-recipe')
+        response = client.get('/babi.sh/recipes/test-recipe')
 
         assert response.status_code == 200
         assert b'Test Recipe' in response.data
@@ -355,7 +351,7 @@ class TestPathBasedRouting:
 
         mock_get_recipe.return_value = sample_recipe
 
-        response = client.get('/nyetcooking/example.com/recipe')
+        response = client.get('/example.com/recipe')
 
         assert response.status_code == 200
         assert b'Test Recipe' in response.data
@@ -370,7 +366,7 @@ class TestPathBasedRouting:
         """Test 404 when fetch fails"""
         mock_get_recipe.side_effect = ValueError("Not found")
 
-        response = client.get('/nyetcooking/nonexistent.com/recipe')
+        response = client.get('/nonexistent.com/recipe')
 
         assert response.status_code == 404
 
@@ -383,13 +379,13 @@ class TestProcessEndpoint:
         """Test that /process redirects to clean path format"""
         mock_get_recipe.return_value = sample_recipe
 
-        response = client.post('/nyetcooking/process', data={
+        response = client.post('/process', data={
             'recipe_url': 'https://www.babi.sh/recipes/test-recipe'
         }, follow_redirects=False)
 
         assert response.status_code == 302
         # Should redirect to clean path (no https://, no www.)
-        assert response.location == '/nyetcooking/babi.sh/recipes/test-recipe'
+        assert response.location == '/babi.sh/recipes/test-recipe'
 
 
 class TestRedisRetry:
