@@ -5,7 +5,8 @@ metadata:
   namespace: blog
   annotations:
     cert-manager.io/cluster-issuer: prod-issuer
-    nginx.ingress.kubernetes.io/permanent-redirect: https://nyetcook.ing
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/permanent-redirect: https://nyetcook.ing/$2
   labels:
     name: nyetcooking-redirect
 spec:
@@ -14,13 +15,13 @@ spec:
   - host: worstwizard.online
     http:
       paths:
-      - backend:
+      - path: /nyetcooking(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
           service:
             name: nyetcooking
             port:
               number: 5000
-        path: /nyetcooking
-        pathType: Prefix
   tls:
   - hosts:
     - worstwizard.online

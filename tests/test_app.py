@@ -142,6 +142,47 @@ class TestMarkdownConversion:
         assert '## Tips' in md
         assert 'Tip 1' in md
 
+    def test_markdown_with_author_as_dict(self):
+        """Test markdown generation with author as dict (NYT style)"""
+        recipe = {
+            'name': 'Test Recipe',
+            'author': {'name': 'Sam Sifton'},
+            'recipeIngredient': ['flour'],
+            'recipeInstructions': [{'text': 'Mix it'}]
+        }
+        md = recipe_to_markdown(recipe)
+        assert '# Test Recipe' in md
+        assert '*By Sam Sifton*' in md
+
+    def test_markdown_with_author_as_list(self):
+        """Test markdown generation with author as list (Bon Appétit style)"""
+        recipe = {
+            'name': 'Test Recipe',
+            'author': [
+                {
+                    '@type': 'Person',
+                    'name': 'Sohui Kim',
+                    'sameAs': 'https://www.bonappetit.com/contributor/sohui-kim'
+                }
+            ],
+            'recipeIngredient': ['flour'],
+            'recipeInstructions': [{'text': 'Mix it'}]
+        }
+        md = recipe_to_markdown(recipe)
+        assert '# Test Recipe' in md
+        assert '*By Sohui Kim*' in md
+
+    def test_markdown_with_no_author(self):
+        """Test markdown generation without author"""
+        recipe = {
+            'name': 'Test Recipe',
+            'recipeIngredient': ['flour'],
+            'recipeInstructions': [{'text': 'Mix it'}]
+        }
+        md = recipe_to_markdown(recipe)
+        assert '# Test Recipe' in md
+        assert '*By' not in md
+
 
 class TestCaching:
     """Test recipe caching functions"""
