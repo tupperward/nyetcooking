@@ -323,8 +323,15 @@ def get_recipe_slug(recipe_json, original_url=None):
 def recipe_to_markdown(recipe_json):
     md = f"# {recipe_json.get('name', 'Recipe')}\n\n"
 
-    if recipe_json.get('author') and recipe_json['author'].get('name'):
-        md += f"*By {recipe_json['author']['name']}*\n\n"
+    # Handle author - can be either a dict (NYT) or a list (Bon Appétit)
+    author = recipe_json.get('author')
+    if author:
+        if isinstance(author, list) and len(author) > 0 and author[0].get('name'):
+            # Author is a list (Bon Appétit style)
+            md += f"*By {author[0]['name']}*\n\n"
+        elif isinstance(author, dict) and author.get('name'):
+            # Author is a dict (NYT style)
+            md += f"*By {author['name']}*\n\n"
 
     if recipe_json.get('description'):
         md += f"{recipe_json['description']}\n\n"
