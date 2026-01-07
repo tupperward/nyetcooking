@@ -155,9 +155,12 @@ def get_cache_keys():
     else:
         return list(recipe_cache.keys())
 
-def get_recipe_with_retry(url, max_retries=3, retry_delay=2):
-    """Fetch recipe with retry logic"""
+def get_recipe_with_retry(url, max_retries=2):
+    """Fetch recipe with retry logic and exponential backoff"""
     last_error = None
+
+    # Don't retry on these permanent errors
+    permanent_errors = ["HTTP 404", "HTTP 403", "HTTP 401", "Could not find"]
 
     for attempt in range(1, max_retries + 1):
         try:
@@ -165,9 +168,18 @@ def get_recipe_with_retry(url, max_retries=3, retry_delay=2):
             return get_recipe(url)
         except Exception as e:
             last_error = e
+            error_msg = str(e)
+
+            # Don't retry on permanent errors
+            if any(perm_err in error_msg for perm_err in permanent_errors):
+                logger.error(f"Permanent error detected: {e}. Not retrying.")
+                raise e
+
             if attempt < max_retries:
-                logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {retry_delay}s...")
-                time.sleep(retry_delay)
+                # Exponential backoff: 1s, 2s, 4s...
+                delay = 2 ** (attempt - 1)
+                logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {delay}s...")
+                time.sleep(delay)
             else:
                 logger.error(f"All {max_retries} attempts failed. Last error: {e}")
 
@@ -181,7 +193,7 @@ def get_recipe(url):
 
     logger.info(f"Fetching URL: {url}")
     try:
-        res = requests.get(url, headers=headers, timeout=30)
+        res = requests.get(url, headers=headers, timeout=15)
         logger.info(f"Response status: {res.status_code}")
 
         if res.status_code != 200:
@@ -435,12 +447,26 @@ def process_recipe():
         clean_path = normalize_url_for_path(recipe_url)
         logger.info(f"Normalized path: {clean_path}")
 
-        # Fetch recipe (will be cached automatically in the route handler)
+        # Check cache FIRST to avoid unnecessary fetching
+        cached_data = get_cached_recipe(clean_path)
+        if cached_data:
+            logger.info(f"Recipe already in cache, redirecting immediately")
+            return redirect(f"/{clean_path}")
+
+        # Not in cache - fetch recipe
         recipe_json = get_recipe_with_retry(recipe_url)
 
         if not recipe_json:
             logger.error("get_recipe returned None or empty data")
-            return "Error: Recipe data is empty. Check server logs for details.", 400
+            return render_template('error.html',
+                error_title="Recipe Data Empty",
+                error_description="The recipe data returned was empty or invalid.",
+                suggestions=[
+                    "Verify the URL is correct and accessible",
+                    "Check that the page contains structured recipe data",
+                    "Try a different recipe from the same site"
+                ]
+            ), 400
 
         logger.info(f"Recipe data keys: {list(recipe_json.keys()) if recipe_json else 'None'}")
 
@@ -455,7 +481,53 @@ def process_recipe():
         logger.error(f"ERROR in process_recipe: {str(e)}")
         logger.error(f"ERROR type: {type(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return f"Error processing recipe: {str(e)}", 400
+
+        # Determine error type and provide helpful message
+        error_msg = str(e)
+        if "Could not find any JSON-LD" in error_msg:
+            return render_template('error.html',
+                error_title="No Recipe Data Found",
+                error_description="This page doesn't contain structured recipe data that we can extract.",
+                error_details=error_msg,
+                suggestions=[
+                    "Make sure the URL is for a recipe page, not a blog post or article",
+                    "Try a recipe from a different site (works well with AllRecipes, NYT Cooking, Bon Appetit)",
+                    "Some recipe sites don't use structured data and won't work with this tool"
+                ]
+            ), 400
+        elif "Could not find a Recipe object" in error_msg:
+            return render_template('error.html',
+                error_title="No Recipe Found in Page Data",
+                error_description="The page has structured data but no recipe was found.",
+                error_details=error_msg,
+                suggestions=[
+                    "The page might have JSON-LD data for other content (articles, videos, etc.)",
+                    "Try the actual recipe page URL instead of a listing or collection page",
+                    "Some sites use non-standard recipe formats that we can't parse"
+                ]
+            ), 400
+        elif "HTTP" in error_msg:
+            return render_template('error.html',
+                error_title="Failed to Fetch Recipe",
+                error_description="We couldn't access the recipe page.",
+                error_details=error_msg,
+                suggestions=[
+                    "Check that the URL is correct and publicly accessible",
+                    "The site might be blocking automated requests",
+                    "Try copying the URL directly from your browser's address bar"
+                ]
+            ), 400
+        else:
+            return render_template('error.html',
+                error_title="Error Processing Recipe",
+                error_description="An unexpected error occurred while processing the recipe.",
+                error_details=error_msg,
+                suggestions=[
+                    "Try again - temporary network issues can cause errors",
+                    "Verify the URL is correct and accessible",
+                    "Try a different recipe to see if the issue is site-specific"
+                ]
+            ), 400
 
 @app.route('/<int:recipe_id>')
 @app.route('/recipes/<int:recipe_id>')
@@ -496,10 +568,27 @@ def nyt_recipe_auto_fetch(recipe_id, recipe_name=None):
                 return redirect(f"/{recipe_slug}")
             else:
                 logger.error(f"Failed to fetch recipe {recipe_id}")
-                return "Recipe not found at NYT Cooking", 404
+                return render_template('error.html',
+                    error_title="Recipe Not Found",
+                    error_description=f"Could not find recipe {recipe_id} at NYT Cooking.",
+                    suggestions=[
+                        "Verify the recipe ID is correct",
+                        "The recipe might have been removed from NYT Cooking",
+                        "Try accessing the recipe directly on cooking.nytimes.com first"
+                    ]
+                ), 404
         except Exception as e:
             logger.error(f"Error auto-fetching recipe {recipe_id}: {e}")
-            return f"Error fetching recipe: {e}", 400
+            return render_template('error.html',
+                error_title="Error Fetching Recipe",
+                error_description="Failed to automatically fetch the recipe from NYT Cooking.",
+                error_details=str(e),
+                suggestions=[
+                    "Try again - this might be a temporary issue",
+                    "Verify you have access to the recipe on cooking.nytimes.com",
+                    "Use the full recipe URL instead of just the ID"
+                ]
+            ), 400
     else:
         # Recipe found in cache - extract and render
         if isinstance(cached_data, dict) and 'recipe' in cached_data:
@@ -570,7 +659,16 @@ def recipe_card(recipe_path):
     except Exception as e:
         logger.error(f"Template rendering failed: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return f"Template rendering error: {e}", 500
+        return render_template('error.html',
+            error_title="Template Rendering Error",
+            error_description="Failed to render the recipe card. The recipe data might be malformed.",
+            error_details=str(e),
+            suggestions=[
+                "This is likely a bug - please report it",
+                "Try processing the recipe again",
+                "The recipe data format might be incompatible"
+            ]
+        ), 500
 
 def recipe_markdown(recipe_path):
     """Handle markdown export - called from recipe_card route"""

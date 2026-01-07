@@ -78,7 +78,7 @@
             color: var(--bg);
             padding: 20px;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 0;
         }
 
         .container {
@@ -224,8 +224,8 @@
         }
 
         .action-button {
-            background-color: var(--accent);
-            color: var(--bg);
+            background-color: #7b64c0;
+            color: white;
             border: none;
             padding: 12px 20px;
             border-radius: 5px;
@@ -239,38 +239,60 @@
         }
 
         .action-button:hover {
-            background-color: var(--hover);
+            background-color: #6a52ad;
         }
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
         /* Mobile responsive styles */
         @media (max-width: 768px) {
             body {
                 overflow-x: hidden;
             }
 
+<<<<<<< Updated upstream
             .container {
                 padding: 10px;
             }
 
             header {
                 padding: 15px 10px 60px 10px;
+=======
+            header {
+                position: relative;
+                padding: 60px 10px 15px 10px;
+>>>>>>> Stashed changes
             }
 
             h1 {
                 font-size: 1.5em;
+<<<<<<< Updated upstream
                 padding-right: 10px;
+=======
+>>>>>>> Stashed changes
             }
 
             .action-buttons {
                 position: absolute;
+<<<<<<< Updated upstream
                 top: auto;
                 bottom: 10px;
+=======
+                top: 10px;
+>>>>>>> Stashed changes
                 right: 10px;
                 left: 10px;
                 flex-direction: row;
                 justify-content: center;
                 flex-wrap: wrap;
                 gap: 8px;
+<<<<<<< Updated upstream
+=======
+                z-index: 10;
+>>>>>>> Stashed changes
             }
 
             .action-button {
@@ -300,6 +322,10 @@
             }
         }
 
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
         /* Print-specific styles - basic and minimal */
         @media print {
             .no-print, img, .rating, .recipe-meta, .description {
@@ -388,6 +414,9 @@
         {% if recipe.author and recipe.author.name %}
         <p>By {{ recipe.author.name }}</p>
         {% endif %}
+        <div style="text-align: center; margin-top: 10px; margin-bottom: -10px;">
+            <button class="action-button" onclick="copySourceURL(event)" style="position: static;">🔗 Copy Source</button>
+        </div>
     </header>
 
     <div class="container">
@@ -621,6 +650,42 @@
             } catch (err) {
                 console.error('Failed to copy URL:', err);
                 alert('Failed to copy URL: ' + err.message);
+            }
+        }
+
+        async function copySourceURL(event) {
+            try {
+                // Convert path back to source URL (remove leading slash, add https://)
+                const path = window.location.pathname;
+                const sourceURL = 'https://' + path.substring(1);
+
+                // Try modern clipboard API first
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(sourceURL);
+                } else {
+                    // Fallback for non-HTTPS environments
+                    const textArea = document.createElement('textarea');
+                    textArea.value = sourceURL;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                }
+
+                // Show feedback
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy source URL:', err);
+                alert('Failed to copy source URL: ' + err.message);
             }
         }
     </script>
