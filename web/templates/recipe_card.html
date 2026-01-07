@@ -320,6 +320,7 @@
 </head>
 <body>
     <div class="action-buttons no-print">
+        <button class="action-button" onclick="copyURL(event)">🔗 Copy URL</button>
         <button class="action-button" onclick="window.print()">🖨️ Print</button>
         <button class="action-button" onclick="copyMarkdown()">📋 Copy MD</button>
     </div>
@@ -528,6 +529,40 @@
                 } catch (fallbackErr) {
                     // Silently fail - user can try again if needed
                 }
+            }
+        }
+
+        async function copyURL(event) {
+            try {
+                const url = window.location.href;
+
+                // Try modern clipboard API first
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(url);
+                } else {
+                    // Fallback for non-HTTPS environments
+                    const textArea = document.createElement('textarea');
+                    textArea.value = url;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                }
+
+                // Show feedback
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy URL:', err);
+                alert('Failed to copy URL: ' + err.message);
             }
         }
     </script>
