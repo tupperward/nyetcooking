@@ -42,6 +42,70 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Helper function to format ISO 8601 durations
+def format_duration(duration_str):
+    """Convert ISO 8601 duration (e.g., 'PT0H45M') to readable format (e.g., '45 minutes')"""
+    if not duration_str or not isinstance(duration_str, str):
+        return duration_str
+
+    # If it's already readable (doesn't start with PT), return as is
+    if not duration_str.startswith('PT'):
+        return duration_str
+
+    # Parse ISO 8601 duration format: PT#H#M or PT#M
+    import re
+    pattern = r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?'
+    match = re.match(pattern, duration_str)
+
+    if not match:
+        return duration_str
+
+    hours = int(match.group(1)) if match.group(1) else 0
+    minutes = int(match.group(2)) if match.group(2) else 0
+    seconds = int(match.group(3)) if match.group(3) else 0
+
+    parts = []
+    if hours > 0:
+        parts.append(f"{hours} {'hour' if hours == 1 else 'hours'}")
+    if minutes > 0:
+        parts.append(f"{minutes} {'minute' if minutes == 1 else 'minutes'}")
+    if seconds > 0 and hours == 0:  # Only show seconds if no hours
+        parts.append(f"{seconds} {'second' if seconds == 1 else 'seconds'}")
+
+    return ' '.join(parts) if parts else duration_str
+
+# Helper function to flatten recipe instructions
+def flatten_instructions(instructions):
+    """Flatten recipe instructions that may contain HowToSection objects"""
+    if not instructions:
+        return []
+
+    flattened = []
+    for item in instructions:
+        if isinstance(item, dict):
+            # Check if it's a HowToSection
+            if item.get('@type') == 'HowToSection':
+                # Extract steps from itemListElement
+                if 'itemListElement' in item:
+                    for step in item['itemListElement']:
+                        if isinstance(step, dict):
+                            flattened.append(step.get('text', str(step)))
+                        else:
+                            flattened.append(str(step))
+            # Regular HowToStep or similar
+            elif 'text' in item:
+                flattened.append(item['text'])
+            else:
+                flattened.append(str(item))
+        else:
+            flattened.append(str(item))
+
+    return flattened
+
+# Register Jinja2 filters
+app.jinja_env.filters['format_duration'] = format_duration
+app.jinja_env.filters['flatten_instructions'] = flatten_instructions
+
 # Redis setup with fallback to in-memory cache
 def connect_to_redis_with_retry(max_retries=5, initial_delay=1):
     """
@@ -370,8 +434,8 @@ def recipe_to_markdown(recipe_json):
 
     # Instructions
     md += "## Instructions\n\n"
-    for i, step in enumerate(recipe_json.get('recipeInstructions', []), 1):
-        instruction = step.get('text', step) if isinstance(step, dict) else step
+    instructions = flatten_instructions(recipe_json.get('recipeInstructions', []))
+    for i, instruction in enumerate(instructions, 1):
         md += f"{i}. {instruction}\n"
     md += "\n"
 
