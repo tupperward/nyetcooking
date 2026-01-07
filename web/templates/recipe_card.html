@@ -242,6 +242,64 @@
             background-color: var(--hover);
         }
 
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            body {
+                overflow-x: hidden;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            header {
+                padding: 15px 10px 60px 10px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+                padding-right: 10px;
+            }
+
+            .action-buttons {
+                position: absolute;
+                top: auto;
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                flex-direction: row;
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .action-button {
+                padding: 8px 12px;
+                font-size: 14px;
+                flex: 1;
+                min-width: 90px;
+            }
+
+            .recipe-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .ingredients-section {
+                flex: 1;
+            }
+
+            .recipe-meta {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .recipe-meta div {
+                flex: 1 1 45%;
+                min-width: 120px;
+            }
+        }
+
         /* Print-specific styles - basic and minimal */
         @media print {
             .no-print, img, .rating, .recipe-meta, .description {
