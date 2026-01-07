@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Recipe Not Found - Nyetcooking</title>
+    <title>Error - Nyetcooking</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" type="image/x-icon" href="https://worstwizard.online/favicon.ico">
@@ -18,7 +18,7 @@
         text-align: center;
       }
       h1 {
-        color: var(--fg);
+        color: #d32f2f;
         font-family: var(--serif);
         font-weight: 700;
         margin-bottom: 20px;
@@ -28,13 +28,25 @@
         margin: 15px 0;
         line-height: 1.6;
       }
-      .recipe-name {
+      .error-message {
         font-family: monospace;
-        background: var(--hover);
-        padding: 5px 10px;
+        background: var(--hl_bg);
+        padding: 15px;
         border-radius: 4px;
+        border-left: 4px solid #d32f2f;
+        margin: 20px 0;
+        text-align: left;
+        color: var(--fg);
+      }
+      .suggestions {
+        text-align: left;
         display: inline-block;
+        color: var(--fg);
+        margin: 20px 0;
+      }
+      .suggestions li {
         margin: 10px 0;
+        color: var(--fg);
       }
       a {
         display: inline-block;
@@ -54,15 +66,25 @@
   </head>
   <body>
     <div class="container">
-      <h1>Recipe Not Found</h1>
-      <p>The recipe <span class="recipe-name">{{ recipe_name }}</span> was not found in our cache.</p>
-      <p>This could mean:</p>
-      <ul style="text-align: left; display: inline-block; color: var(--fg);">
-        <li>The recipe was never processed</li>
-        <li>The cache entry expired</li>
-        <li>The recipe slug is incorrect</li>
+      <h1>{{ error_title or "Error Processing Recipe" }}</h1>
+      <p>{{ error_description or "We encountered an error while processing your recipe." }}</p>
+
+      {% if error_details %}
+      <div class="error-message">
+        <strong>Error Details:</strong><br>
+        {{ error_details }}
+      </div>
+      {% endif %}
+
+      {% if suggestions %}
+      <p><strong>Suggestions:</strong></p>
+      <ul class="suggestions">
+        {% for suggestion in suggestions %}
+        <li>{{ suggestion }}</li>
+        {% endfor %}
       </ul>
-      <p>To process this recipe, return to the home page and enter the original recipe URL.</p>
+      {% endif %}
+
       <a href="/">Return to Home</a>
     </div>
   </body>
