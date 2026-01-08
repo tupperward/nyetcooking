@@ -18,7 +18,7 @@
         <div class="form-group">
           <label for="recipe_url">Recipe URL:</label>
           <input
-            type="url"
+            type="text"
             id="recipe_url"
             name="recipe_url"
             required
@@ -32,5 +32,7 @@
         <button type="submit">Generate Recipe Card</button>
       </form>
     </div>
+
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
   </body>
 </html>

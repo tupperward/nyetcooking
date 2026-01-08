@@ -8,6 +8,7 @@ import sys
 import traceback
 import os
 import time
+import argparse
 from urllib.parse import quote, unquote
 
 # URL normalization helpers
@@ -80,25 +81,48 @@ def flatten_instructions(instructions):
     if not instructions:
         return []
 
+    logger.info(f"Flattening instructions, type: {type(instructions)}, length: {len(instructions) if hasattr(instructions, '__len__') else 'N/A'}")
+    logger.info(f"First item type: {type(instructions[0]) if instructions else 'N/A'}")
+    if instructions and len(instructions) > 1:
+        logger.info(f"Second item: {instructions[1]}")
+
     flattened = []
-    for item in instructions:
+    for i, item in enumerate(instructions):
         if isinstance(item, dict):
             # Check if it's a HowToSection
             if item.get('@type') == 'HowToSection':
                 # Extract steps from itemListElement
                 if 'itemListElement' in item:
-                    for step in item['itemListElement']:
-                        if isinstance(step, dict):
-                            flattened.append(step.get('text', str(step)))
-                        else:
-                            flattened.append(str(step))
-            # Regular HowToStep or similar
+                    item_list = item['itemListElement']
+                    # itemListElement can be either a list or a single dict
+                    if isinstance(item_list, list):
+                        # It's a list of steps
+                        for step in item_list:
+                            if isinstance(step, dict):
+                                flattened.append(step.get('text', str(step)))
+                            else:
+                                flattened.append(str(step))
+                    elif isinstance(item_list, dict):
+                        # It's a single step
+                        flattened.append(item_list.get('text', str(item_list)))
+            # Check for text field (works for HowToStep and other formats)
             elif 'text' in item:
                 flattened.append(item['text'])
+            # Check for name field as fallback
+            elif 'name' in item:
+                flattened.append(item['name'])
+            # Only add the stringified version if we really can't find text
+            # This prevents showing raw JSON metadata
+            elif isinstance(item, dict) and len(item) == 1:
+                # Single-value dict, use the value
+                flattened.append(str(list(item.values())[0]))
             else:
-                flattened.append(str(item))
+                logger.warning(f"Instruction item {i} is dict but has no text/name: {item}")
+        elif isinstance(item, str):
+            # Plain string instruction
+            flattened.append(item)
         else:
-            flattened.append(str(item))
+            logger.warning(f"Instruction item {i} is unexpected type {type(item)}: {item}")
 
     return flattened
 
@@ -123,6 +147,12 @@ def extract_domain(path_or_url):
 app.jinja_env.filters['format_duration'] = format_duration
 app.jinja_env.filters['flatten_instructions'] = flatten_instructions
 app.jinja_env.filters['extract_domain'] = extract_domain
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser(description='NYetcooking Flask App')
+parser.add_argument('--no-cache', action='store_true',
+                    help='Skip Redis connection and use in-memory cache only')
+args, unknown = parser.parse_known_args()
 
 # Redis setup with fallback to in-memory cache
 def connect_to_redis_with_retry(max_retries=5, initial_delay=1):
@@ -163,7 +193,12 @@ def connect_to_redis_with_retry(max_retries=5, initial_delay=1):
                 logger.info("Falling back to in-memory cache")
                 return None, False
 
-redis_client, USE_REDIS = connect_to_redis_with_retry()
+# Check if --no-cache flag was provided
+if args.no_cache:
+    logger.info("--no-cache flag detected, skipping Redis connection")
+    redis_client, USE_REDIS = None, False
+else:
+    redis_client, USE_REDIS = connect_to_redis_with_retry()
 
 # Log startup information immediately
 logger.info("=== Nyetcooking Flask App Initializing ===")
@@ -236,6 +271,27 @@ def get_cache_keys():
             return list(recipe_cache.keys())
     else:
         return list(recipe_cache.keys())
+
+def delete_cached_recipe(slug):
+    """Delete recipe from cache (Redis or in-memory)"""
+    if USE_REDIS:
+        try:
+            deleted = redis_client.delete(f"recipe:{slug}")
+            if deleted:
+                logger.info(f"Deleted recipe '{slug}' from Redis")
+            else:
+                logger.info(f"Recipe '{slug}' not found in Redis for deletion")
+        except Exception as e:
+            logger.error(f"Redis delete failed, falling back to memory: {e}")
+            if slug in recipe_cache:
+                del recipe_cache[slug]
+                logger.info(f"Deleted recipe '{slug}' from memory")
+    else:
+        if slug in recipe_cache:
+            del recipe_cache[slug]
+            logger.info(f"Deleted recipe '{slug}' from memory")
+        else:
+            logger.info(f"Recipe '{slug}' not found in memory for deletion")
 
 def get_recipe_with_retry(url, max_retries=2):
     """Fetch recipe with retry logic and exponential backoff"""
@@ -629,6 +685,16 @@ def process_recipe():
 @app.route('/recipes/<int:recipe_id>-<recipe_name>')
 def nyt_recipe_auto_fetch(recipe_id, recipe_name=None):
     """Auto-fetch NYT recipes by ID if not cached"""
+    # Check for refresh parameter to force cache bust
+    if request.args.get('refresh') == '1':
+        logger.info(f"Cache refresh requested for recipe ID {recipe_id}")
+        # Clear all cached versions of this recipe (with any slug variation)
+        cache_keys = get_cache_keys()
+        for key in cache_keys:
+            if key.startswith(f"{recipe_id}-"):
+                delete_cached_recipe(key)
+                logger.info(f"Deleted cached recipe key: {key}")
+
     # Try to find the recipe in cache first - check both formats
     slug_with_id = f"{recipe_id}-{recipe_name}" if recipe_name else None
     cached_data = None
@@ -703,6 +769,11 @@ def recipe_card(recipe_path):
         # Strip /markdown and handle separately
         actual_path = recipe_path[:-9]  # Remove '/markdown'
         return recipe_markdown(actual_path)
+
+    # Check for refresh parameter to force cache bust
+    if request.args.get('refresh') == '1':
+        logger.info(f"Cache refresh requested for '{recipe_path}'")
+        delete_cached_recipe(recipe_path)
 
     # Try cache first using the clean path
     cached_data = get_cached_recipe(recipe_path)

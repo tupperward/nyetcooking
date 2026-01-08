@@ -26,7 +26,8 @@ label {
   color: var(--fg);
 }
 
-input[type="url"] {
+input[type="url"],
+input[type="text"] {
   width: 100%;
   padding: 12px;
   border: 2px solid var(--hover);
@@ -38,12 +39,14 @@ input[type="url"] {
   color: var(--fg);
 }
 
-input[type="url"]:focus {
+input[type="url"]:focus,
+input[type="text"]:focus {
   border-color: var(--accent);
   outline: none;
 }
 
-input[type="url"]::placeholder {
+input[type="url"]::placeholder,
+input[type="text"]::placeholder {
   color: var(--dim);
   opacity: 0.7;
 }
