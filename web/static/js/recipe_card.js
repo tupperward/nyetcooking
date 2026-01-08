@@ -48,8 +48,8 @@ async function copyMarkdown() {
 
             const content = document.createElement('div');
             content.style.cssText = `
-                background: white; padding: 20px; border-radius: 8px;
-                max-width: 80%; max-height: 80%; overflow: auto;
+                background: #333; padding: 20px; border-radius: 8px;
+                width: 90%; max-width: 1200px; max-height: 80%; overflow: auto;
                 position: relative;
             `;
 
@@ -58,25 +58,50 @@ async function copyMarkdown() {
             closeBtn.style.cssText = `
                 position: absolute; top: 10px; right: 10px;
                 background: #f44336; color: white; border: none;
-                padding: 5px 10px; border-radius: 3px; cursor: pointer;
+                padding: 8px 16px; border-radius: 3px; cursor: pointer;
+                font-size: 14px; width: 90px; white-space: nowrap;
+                overflow: hidden;
             `;
             closeBtn.onclick = () => document.body.removeChild(modal);
+
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = '📋 Copy';
+            copyBtn.style.cssText = `
+                position: absolute; top: 10px; right: 120px;
+                background: #4CAF50; color: white; border: none;
+                padding: 8px 16px; border-radius: 3px; cursor: pointer;
+                font-size: 14px; width: 90px; white-space: nowrap;
+                overflow: hidden;
+            `;
+            copyBtn.onclick = async () => {
+                try {
+                    const textToCopy = textarea.value;
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(textToCopy);
+                    } else {
+                        textarea.select();
+                        document.execCommand('copy');
+                    }
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = '✅ Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+            };
 
             const textarea = document.createElement('textarea');
             textarea.value = markdown;
             textarea.style.cssText = `
                 width: 100%; height: 400px; font-family: monospace;
                 border: 1px solid #ccc; padding: 10px; margin-top: 30px;
+                background: white !important; color: black !important;
             `;
-            textarea.readOnly = true;
-            textarea.onclick = () => textarea.select();
-
-            const instructions = document.createElement('p');
-            instructions.textContent = 'Click the text area to select all, then copy (Ctrl+C / Cmd+C)';
-            instructions.style.cssText = 'margin: 10px 0; color: #666;';
 
             content.appendChild(closeBtn);
-            content.appendChild(instructions);
+            content.appendChild(copyBtn);
             content.appendChild(textarea);
             modal.appendChild(content);
             document.body.appendChild(modal);

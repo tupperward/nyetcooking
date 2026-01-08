@@ -414,18 +414,31 @@ def get_recipe_slug(recipe_json, original_url=None):
 
     return slug
 
-def recipe_to_markdown(recipe_json):
+def recipe_to_markdown(recipe_json, original_url=None):
     md = f"# {recipe_json.get('name', 'Recipe')}\n\n"
 
     # Handle author - can be either a dict (NYT) or a list (Bon Appétit)
     author = recipe_json.get('author')
+    author_name = None
+
     if author:
         if isinstance(author, list) and len(author) > 0 and author[0].get('name'):
             # Author is a list (Bon Appétit style)
-            md += f"*By {author[0]['name']}*\n\n"
+            author_name = author[0]['name']
         elif isinstance(author, dict) and author.get('name'):
             # Author is a dict (NYT style)
-            md += f"*By {author['name']}*\n\n"
+            author_name = author['name']
+
+    # Extract domain from original URL
+    domain = extract_domain(original_url) if original_url else None
+
+    # Format author line with domain (matching recipe_card.html format)
+    if author_name and domain:
+        md += f"*By {author_name} from {domain}*\n\n"
+    elif author_name:
+        md += f"*By {author_name}*\n\n"
+    elif domain:
+        md += f"*From {domain}*\n\n"
 
     if recipe_json.get('description'):
         md += f"{recipe_json['description']}\n\n"
@@ -755,10 +768,12 @@ def recipe_card(recipe_path):
 def recipe_markdown(recipe_path):
     """Handle markdown export - called from recipe_card route"""
     cached_data = get_cached_recipe(recipe_path)
+    original_url = None
 
     if cached_data and isinstance(cached_data, dict) and 'recipe' in cached_data:
         # Found in cache
         recipe_json = cached_data['recipe']
+        original_url = cached_data.get('original_url')
     elif cached_data:
         # Old format
         recipe_json = cached_data
@@ -778,6 +793,7 @@ def recipe_markdown(recipe_path):
                 recipe_json = get_recipe_with_retry(url, max_retries=2)
                 if recipe_json:
                     cache_recipe(recipe_path, recipe_json, url)
+                    original_url = url
                     break
             except Exception as e:
                 logger.warning(f"Markdown export fetch failed: {e}")
@@ -786,7 +802,7 @@ def recipe_markdown(recipe_path):
         if not recipe_json:
             return "Recipe not found", 404
 
-    return recipe_to_markdown(recipe_json), 200, {'Content-Type': 'text/plain; charset=utf-8'}
+    return recipe_to_markdown(recipe_json, original_url), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 if __name__ == '__main__':
     try:
