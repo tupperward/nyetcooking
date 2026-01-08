@@ -1,0 +1,47 @@
+.container {
+  max-width: 600px;
+  margin: 50px auto;
+  padding: 30px;
+  background: var(--bg);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+h1 {
+  color: var(--fg);
+  font-family: var(--serif);
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+p {
+  color: var(--fg);
+  margin: 15px 0;
+  line-height: 1.6;
+}
+
+.recipe-name {
+  font-family: monospace;
+  background: var(--hover);
+  padding: 5px 10px;
+  border-radius: 4px;
+  display: inline-block;
+  margin: 10px 0;
+}
+
+a {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 12px 24px;
+  background-color: #7b64c0;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+a:hover {
+  background-color: #6a52ad;
+}
