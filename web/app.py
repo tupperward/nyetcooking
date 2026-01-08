@@ -102,9 +102,27 @@ def flatten_instructions(instructions):
 
     return flattened
 
+# Helper function to extract domain from path
+def extract_domain(path_or_url):
+    """Extract the domain from a URL or path"""
+    if not path_or_url:
+        return None
+
+    # Remove leading slash if present
+    clean = path_or_url.lstrip('/')
+
+    # Remove protocol if present
+    clean = clean.replace('https://', '').replace('http://', '')
+
+    # Extract just the domain (everything before the first /)
+    domain = clean.split('/')[0] if '/' in clean else clean
+
+    return domain if domain else None
+
 # Register Jinja2 filters
 app.jinja_env.filters['format_duration'] = format_duration
 app.jinja_env.filters['flatten_instructions'] = flatten_instructions
+app.jinja_env.filters['extract_domain'] = extract_domain
 
 # Redis setup with fallback to in-memory cache
 def connect_to_redis_with_retry(max_retries=5, initial_delay=1):

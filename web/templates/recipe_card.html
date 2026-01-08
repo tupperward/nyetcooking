@@ -434,8 +434,20 @@
 
     <header>
         <h1>{{ recipe.name }}</h1>
-        {% if recipe.author and recipe.author.name %}
-        <p>By {{ recipe.author.name }}</p>
+        {% set author_name = none %}
+        {% if recipe.author %}
+            {% if recipe.author is mapping and recipe.author.name %}
+                {% set author_name = recipe.author.name %}
+            {% elif recipe.author is iterable and recipe.author is not string and recipe.author|length > 0 %}
+                {% if recipe.author[0].name %}
+                    {% set author_name = recipe.author[0].name %}
+                {% endif %}
+            {% endif %}
+        {% endif %}
+        {% if author_name %}
+        <p>By {{ author_name }}{% if request.path | extract_domain %} from {{ request.path | extract_domain }}{% endif %}</p>
+        {% elif request.path | extract_domain %}
+        <p>From {{ request.path | extract_domain }}</p>
         {% endif %}
         <div class="no-print" style="text-align: center; margin-top: 25px; margin-bottom: -10px;">
             <button class="action-button" onclick="copySourceURL(event)" style="position: static;">🔗 Copy Source</button>
