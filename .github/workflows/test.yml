@@ -32,20 +32,4 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=web --cov-report=term-missing --cov-report=xml --cov-report=html
-
-    - name: Upload coverage to Codecov (optional)
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
-
-    - name: Upload coverage reports as artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-reports
-        path: |
-          coverage.xml
-          htmlcov/
+        pytest --cov=web --cov-report=term-missing
