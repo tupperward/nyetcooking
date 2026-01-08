@@ -85,6 +85,12 @@ img {
 
 .ingredients-section h2 {
     margin-top: 0;
+    font-weight: 600 !important;
+    font-family: var(--serif) !important;
+    color: var(--fg);
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 5px;
+    margin-bottom: 15px;
 }
 
 .instructions-section {
@@ -94,6 +100,12 @@ img {
 
 .instructions-section h2 {
     margin-top: 0;
+    font-weight: 600 !important;
+    font-family: var(--serif) !important;
+    color: var(--fg);
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 5px;
+    margin-bottom: 15px;
 }
 
 ul {

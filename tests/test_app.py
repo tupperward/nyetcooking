@@ -15,8 +15,15 @@ from web.app import (
     cache_recipe,
     get_cached_recipe,
     get_cache_keys,
+    delete_cached_recipe,
     get_recipe_with_retry,
-    connect_to_redis_with_retry
+    connect_to_redis_with_retry,
+    flatten_instructions,
+    normalize_url_for_path,
+    denormalize_path_to_url,
+    denormalize_path_to_url_with_www,
+    extract_domain,
+    format_duration
 )
 
 
@@ -68,6 +75,165 @@ def sample_recipe_with_image_object():
     }
 
 
+class TestURLNormalization:
+    """Test URL normalization and denormalization functions"""
+
+    def test_normalize_url_basic(self):
+        """Test basic URL normalization"""
+        url = "https://cooking.nytimes.com/recipes/1234-test"
+        result = normalize_url_for_path(url)
+        assert result == "cooking.nytimes.com/recipes/1234-test"
+
+    def test_normalize_url_http(self):
+        """Test normalization with http protocol"""
+        url = "http://example.com/recipe"
+        result = normalize_url_for_path(url)
+        assert result == "example.com/recipe"
+
+    def test_normalize_url_with_www(self):
+        """Test normalization removes www."""
+        url = "https://www.bonappetit.com/recipe/pasta"
+        result = normalize_url_for_path(url)
+        assert result == "bonappetit.com/recipe/pasta"
+
+    def test_normalize_url_with_www_and_http(self):
+        """Test normalization removes both protocol and www"""
+        url = "http://www.example.com/test"
+        result = normalize_url_for_path(url)
+        assert result == "example.com/test"
+
+    def test_denormalize_path_to_url(self):
+        """Test converting path back to URL"""
+        path = "cooking.nytimes.com/recipes/1234"
+        result = denormalize_path_to_url(path)
+        assert result == "https://cooking.nytimes.com/recipes/1234"
+
+    def test_denormalize_path_to_url_with_www(self):
+        """Test converting path to URL with www prefix"""
+        path = "example.com/recipe"
+        result = denormalize_path_to_url_with_www(path)
+        assert result == "https://www.example.com/recipe"
+
+    def test_denormalize_path_already_has_www(self):
+        """Test denormalization when path already has www"""
+        path = "www.example.com/recipe"
+        result = denormalize_path_to_url_with_www(path)
+        assert result == "https://www.example.com/recipe"
+
+
+class TestExtractDomain:
+    """Test domain extraction from URLs and paths"""
+
+    def test_extract_from_full_url(self):
+        """Test extracting domain from full URL"""
+        url = "https://cooking.nytimes.com/recipes/1234-test"
+        result = extract_domain(url)
+        assert result == "cooking.nytimes.com"
+
+    def test_extract_from_path(self):
+        """Test extracting domain from path"""
+        path = "bonappetit.com/recipe/pasta-carbonara"
+        result = extract_domain(path)
+        assert result == "bonappetit.com"
+
+    def test_extract_from_path_with_leading_slash(self):
+        """Test domain extraction with leading slash"""
+        path = "/example.com/test/recipe"
+        result = extract_domain(path)
+        assert result == "example.com"
+
+    def test_extract_domain_only(self):
+        """Test extraction when input is just a domain"""
+        domain = "cooking.nytimes.com"
+        result = extract_domain(domain)
+        assert result == "cooking.nytimes.com"
+
+    def test_extract_domain_none(self):
+        """Test extraction with None input"""
+        result = extract_domain(None)
+        assert result is None
+
+    def test_extract_domain_empty(self):
+        """Test extraction with empty string"""
+        result = extract_domain("")
+        assert result is None
+
+
+class TestFormatDuration:
+    """Test ISO 8601 duration formatting"""
+
+    def test_format_hours_and_minutes(self):
+        """Test formatting duration with hours and minutes"""
+        duration = "PT2H30M"
+        result = format_duration(duration)
+        assert result == "2 hours 30 minutes"
+
+    def test_format_minutes_only(self):
+        """Test formatting duration with minutes only"""
+        duration = "PT45M"
+        result = format_duration(duration)
+        assert result == "45 minutes"
+
+    def test_format_hours_only(self):
+        """Test formatting duration with hours only"""
+        duration = "PT3H"
+        result = format_duration(duration)
+        assert result == "3 hours"
+
+    def test_format_single_hour(self):
+        """Test singular 'hour' for 1 hour"""
+        duration = "PT1H"
+        result = format_duration(duration)
+        assert result == "1 hour"
+
+    def test_format_single_minute(self):
+        """Test singular 'minute' for 1 minute"""
+        duration = "PT1M"
+        result = format_duration(duration)
+        assert result == "1 minute"
+
+    def test_format_with_seconds(self):
+        """Test formatting with seconds (seconds only shown if no hours)"""
+        duration = "PT30M45S"
+        result = format_duration(duration)
+        assert result == "30 minutes 45 seconds"
+
+    def test_format_seconds_only(self):
+        """Test formatting seconds only"""
+        duration = "PT30S"
+        result = format_duration(duration)
+        assert result == "30 seconds"
+
+    def test_format_hours_no_seconds(self):
+        """Test that seconds are omitted when hours present"""
+        duration = "PT2H30M45S"
+        result = format_duration(duration)
+        assert result == "2 hours 30 minutes"
+
+    def test_format_zero_hours(self):
+        """Test PT0H formats correctly"""
+        duration = "PT0H45M"
+        result = format_duration(duration)
+        assert result == "45 minutes"
+
+    def test_format_already_readable(self):
+        """Test that readable durations pass through"""
+        duration = "45 minutes"
+        result = format_duration(duration)
+        assert result == "45 minutes"
+
+    def test_format_none(self):
+        """Test with None input"""
+        result = format_duration(None)
+        assert result is None
+
+    def test_format_invalid(self):
+        """Test with invalid format"""
+        duration = "INVALID"
+        result = format_duration(duration)
+        assert result == "INVALID"
+
+
 class TestRecipeSlug:
     """Test recipe slug generation"""
 
@@ -111,6 +277,148 @@ class TestNYTRecipeID:
         url = 'https://cooking.nytimes.com/guides/1234-guide'
         recipe_id = extract_nyt_recipe_id(url)
         assert recipe_id is None
+
+
+class TestFlattenInstructions:
+    """Test instruction flattening for different JSON-LD formats"""
+
+    def test_empty_instructions(self):
+        """Test with empty or None instructions"""
+        assert flatten_instructions(None) == []
+        assert flatten_instructions([]) == []
+
+    def test_plain_string_instructions(self):
+        """Test with plain string instructions"""
+        instructions = [
+            "Mix the flour and sugar",
+            "Add eggs one at a time",
+            "Bake at 350F"
+        ]
+        result = flatten_instructions(instructions)
+        assert result == instructions
+
+    def test_howtostep_dict_with_text(self):
+        """Test standard HowToStep dicts with text field"""
+        instructions = [
+            {'@type': 'HowToStep', 'text': 'Preheat oven to 350F'},
+            {'@type': 'HowToStep', 'text': 'Mix ingredients'}
+        ]
+        result = flatten_instructions(instructions)
+        assert result == ['Preheat oven to 350F', 'Mix ingredients']
+
+    def test_dict_with_name_field(self):
+        """Test dicts with name field instead of text"""
+        instructions = [
+            {'@type': 'HowToStep', 'name': 'Step 1: Prepare'},
+            {'@type': 'HowToStep', 'name': 'Step 2: Cook'}
+        ]
+        result = flatten_instructions(instructions)
+        assert result == ['Step 1: Prepare', 'Step 2: Cook']
+
+    def test_howtosection_with_list_of_steps(self):
+        """Test HowToSection containing list of steps (common format)"""
+        instructions = [
+            {
+                '@type': 'HowToSection',
+                'name': 'Preparation',
+                'itemListElement': [
+                    {'@type': 'HowToStep', 'text': 'Chop vegetables'},
+                    {'@type': 'HowToStep', 'text': 'Heat oil in pan'}
+                ]
+            },
+            {
+                '@type': 'HowToSection',
+                'name': 'Cooking',
+                'itemListElement': [
+                    {'@type': 'HowToStep', 'text': 'Add vegetables to pan'},
+                    {'@type': 'HowToStep', 'text': 'Cook for 10 minutes'}
+                ]
+            }
+        ]
+        result = flatten_instructions(instructions)
+        assert result == [
+            'Chop vegetables',
+            'Heat oil in pan',
+            'Add vegetables to pan',
+            'Cook for 10 minutes'
+        ]
+
+    def test_howtosection_with_single_step_dict(self):
+        """Test HowToSection with itemListElement as single dict (NYT format bug fix)"""
+        instructions = [
+            {'@type': 'HowToStep', 'text': 'Soak chickpeas overnight'},
+            {
+                '@type': 'HowToSection',
+                'itemListElement': {
+                    '@type': 'HowToStep',
+                    'text': 'Drain and rinse chickpeas',
+                    'url': 'https://cooking.nytimes.com/recipes/123#step-2'
+                }
+            },
+            {
+                '@type': 'HowToSection',
+                'itemListElement': {
+                    '@type': 'HowToStep',
+                    'text': 'Add to pot with water',
+                    'url': 'https://cooking.nytimes.com/recipes/123#step-3'
+                }
+            }
+        ]
+        result = flatten_instructions(instructions)
+        assert result == [
+            'Soak chickpeas overnight',
+            'Drain and rinse chickpeas',
+            'Add to pot with water'
+        ]
+        # Ensure we extracted text, not the whole dict string
+        assert '@type' not in result[1]
+        assert 'url' not in result[1]
+
+    def test_mixed_formats(self):
+        """Test mixture of different instruction formats"""
+        instructions = [
+            "First, gather all ingredients",  # Plain string
+            {'@type': 'HowToStep', 'text': 'Preheat oven'},  # Dict with text
+            {
+                '@type': 'HowToSection',
+                'itemListElement': [
+                    {'@type': 'HowToStep', 'text': 'Mix dry ingredients'},
+                    {'@type': 'HowToStep', 'text': 'Mix wet ingredients'}
+                ]
+            },  # Section with list
+            {'@type': 'HowToStep', 'text': 'Combine mixtures'}  # Dict with text
+        ]
+        result = flatten_instructions(instructions)
+        assert result == [
+            'First, gather all ingredients',
+            'Preheat oven',
+            'Mix dry ingredients',
+            'Mix wet ingredients',
+            'Combine mixtures'
+        ]
+
+    def test_dict_with_text_field_only(self):
+        """Test simple dict with just text field (no @type)"""
+        instructions = [
+            {'text': 'Step 1'},
+            {'text': 'Step 2'}
+        ]
+        result = flatten_instructions(instructions)
+        assert result == ['Step 1', 'Step 2']
+
+    def test_howtosection_with_string_steps(self):
+        """Test HowToSection where steps are strings instead of dicts"""
+        instructions = [
+            {
+                '@type': 'HowToSection',
+                'itemListElement': [
+                    'Prepare ingredients',
+                    'Start cooking'
+                ]
+            }
+        ]
+        result = flatten_instructions(instructions)
+        assert result == ['Prepare ingredients', 'Start cooking']
 
 
 class TestMarkdownConversion:
@@ -210,6 +518,25 @@ class TestCaching:
     def test_get_nonexistent_recipe(self):
         cached = get_cached_recipe('nonexistent-slug')
         assert cached is None
+
+    def test_delete_cached_recipe(self, sample_recipe):
+        """Test deleting a recipe from cache"""
+        slug = 'test-delete-recipe'
+        cache_recipe(slug, sample_recipe, 'https://example.com')
+
+        # Verify it's cached
+        assert get_cached_recipe(slug) is not None
+
+        # Delete it
+        delete_cached_recipe(slug)
+
+        # Verify it's gone
+        assert get_cached_recipe(slug) is None
+
+    def test_delete_nonexistent_recipe(self):
+        """Test deleting a recipe that doesn't exist (should not error)"""
+        # Should not raise an error
+        delete_cached_recipe('nonexistent-slug-to-delete')
 
 
 class TestHealthEndpoint:
