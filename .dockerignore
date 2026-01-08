@@ -1,10 +1,56 @@
+# Documentation
 CLAUDE.md
 .claude/
 *.md
-k8s/
-tests/
-venv/
+README.md
+
+# Git
+.git/
+.gitignore
+
+# CI/CD and deployment
 .github/
-run_tests.sh
+k8s/
 rebuild.sh
+run_tests.sh
+
+# Tests
+tests/
 pytest.ini
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.coverage
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+.venv/
+virtualenv/
+path/
+
+# Environment and secrets
+.env
+.env.*
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
