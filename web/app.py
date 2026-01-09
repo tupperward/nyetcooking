@@ -502,11 +502,11 @@ def recipe_to_markdown(recipe_json, original_url=None):
     # Recipe meta information
     meta_items = []
     if recipe_json.get('totalTime'):
-        meta_items.append(f"**Total Time:** {recipe_json['totalTime']}")
+        meta_items.append(f"**Total Time:** {format_duration(recipe_json['totalTime'])}")
     if recipe_json.get('prepTime'):
-        meta_items.append(f"**Prep Time:** {recipe_json['prepTime']}")
+        meta_items.append(f"**Prep Time:** {format_duration(recipe_json['prepTime'])}")
     if recipe_json.get('cookTime'):
-        meta_items.append(f"**Cook Time:** {recipe_json['cookTime']}")
+        meta_items.append(f"**Cook Time:** {format_duration(recipe_json['cookTime'])}")
     if recipe_json.get('recipeYield'):
         meta_items.append(f"**Serves:** {recipe_json['recipeYield']}")
 

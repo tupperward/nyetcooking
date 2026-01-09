@@ -250,7 +250,7 @@ p {
 
 /* Print-specific styles - basic and minimal */
 @media print {
-    .no-print, img, .rating, .recipe-meta, .description, .tips-section, .notes-section {
+    .no-print, img, .rating, .description, .tips-section, .notes-section {
         display: none !important;
     }
 
@@ -306,6 +306,46 @@ p {
         text-align: center;
         margin-bottom: 2mm;
         color: black;
+    }
+
+    .recipe-meta {
+        display: flex !important;
+        justify-content: center;
+        gap: 3mm;
+        margin: 2mm 0 4mm 0;
+        padding: 0;
+        background: none !important;
+        border: none !important;
+        border-radius: 0;
+        font-size: 8pt;
+        text-align: center;
+    }
+
+    .recipe-meta div {
+        flex: none;
+        text-align: center;
+    }
+
+    .recipe-meta div:not(:last-child)::after {
+        content: " | ";
+        margin: 0 1mm;
+        color: black;
+    }
+
+    .recipe-meta strong {
+        display: inline;
+        font-size: 8pt;
+        font-weight: normal;
+        color: black;
+    }
+
+    .recipe-meta strong::after {
+        content: ": ";
+    }
+
+    .recipe-meta span {
+        color: black;
+        font-size: 8pt;
     }
 
     h2 {
