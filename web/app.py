@@ -830,7 +830,7 @@ def recipe_card(recipe_path):
             error_description="Failed to render the recipe card. The recipe data might be malformed.",
             error_details=str(e),
             suggestions=[
-                "This is likely a bug - please report it",
+                "This is likely a bug - please report it to @worstwizard.online on Bluesky",
                 "Try processing the recipe again",
                 "The recipe data format might be incompatible"
             ]
